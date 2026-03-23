@@ -216,7 +216,6 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
     <script>
         /**
          * OGBÓN ENGINE: Síntesis y Secuenciador
@@ -246,8 +245,8 @@
         let lastScrubStep = -1;
 
         // --- SUPABASE ---
-        const SUPABASE_URL = CONFIG.SUPABASE_URL;
-        const SUPABASE_KEY = CONFIG.SUPABASE_KEY;
+        const SUPABASE_URL = 'https://jsweznbutnkureqxeomz.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impzd2V6bmJ1dG5rdXJlcXhlb216Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NzI0MDcsImV4cCI6MjA4OTE0ODQwN30.1a4yZ0ErZZR-RyAMNz7jIxH46JVs5GGFX7WsDQuImb0';
         const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         let cloudPresets = {};
 
