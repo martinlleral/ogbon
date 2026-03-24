@@ -4,26 +4,41 @@ Aplicación web interactiva para visualizar y componer ritmos de percusión afro
 
 ## Stack
 
-- HTML5 / CSS3
-- JavaScript (vanilla)
-- Web Audio API (síntesis de sonido y efectos)
-- Canvas API (visualización circular y forma de onda)
-- Supabase (almacenamiento de presets en la nube)
+- **React 19** + **Vite 8**
+- **Tailwind CSS 4** para estilos
+- **Web Audio API** (síntesis FM de campana + membrana física para atabaques)
+- **Canvas API** (visualización circular y forma de onda)
+- **Supabase** (almacenamiento de presets en la nube)
 
 ## Funcionalidades
 
-- Composición de patrones rítmicos sobre círculos interactivos para tres tambores
-- Reproducción en tiempo real con síntesis de audio (frecuencias y envolventes personalizadas)
-- Visualización de forma de onda en canvas separado
-- Control de BPM, compás y volumen maestro
-- Presets internos de toques tradicionales
-- Guardado y carga de ritmos en Supabase
-- Exportación e importación de ritmos como archivos
-- Diseño responsive (mobile-first)
+- Composición de patrones rítmicos sobre círculos interactivos para 4 instrumentos (Gã, Rum, Rumpi, Lé)
+- Síntesis de audio realista: FM/inarmónica para campana, membrana física con pitch bend para atabaques
+- Visualización dual: ondas paralelas por instrumento y onda transcendental maestra
+- Efectos visuales: pulsos neón, haces de luz, anillos brillantes
+- Control de BPM, grilla (12/8 ternaria, 4/4 cuaternaria), compases y mixer de ganancia
+- Presets: internos, desde Supabase (nube) y localStorage
+- Exportación/importación de ritmos como archivos `.ogbon`
+- Scrubbing táctil: arrastrar sobre el círculo para previsualizar
+- Diseño responsive
+
+## Desarrollo local
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+npm run preview
+```
 
 ## Demo
 
-[https://martinlleral.github.io/ogbon](https://martinlleral.github.io/ogbon)
+[Ver demo en vivo](https://martinlleral.github.io/ogbon)
 
 ## Autor
 

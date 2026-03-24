@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #121212;
+  --gold: #ffd700;
+  --rum: #ff4500;
+  --rumpi: #ff8c00;
+  --le: #f0f0f0;
+}
+
+body {
+  background: var(--bg);
+  color: white;
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0 10px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+canvas {
+  cursor: crosshair;
+}
+
+/* Vertical range sliders — Tailwind can't handle writing-mode */
+.mixer-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  height: 120px;
+  width: 12px;
+  cursor: pointer;
+  outline: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.mixer-slider:hover {
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .mixer-slider {
+    height: 80px;
+  }
+}
