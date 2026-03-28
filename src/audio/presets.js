@@ -5,11 +5,6 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY
 
 const sbClient = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-export const INTERNAL_PRESETS = {
-  "Kabila (Base)": { grid: 12, steps: [[1,0,1,0,1,1,0,1,0,1,0,1],[0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0],[2,0,1,2,0,1,2,0,1,2,0,1]], bpm: "110", gains: [0.8,1,0.9,0.85] },
-  "Ijexá": { grid: 12, steps: [[1,0,1,0,1,0,1,0,1,0,1,0],[0,0,2,0,1,0,0,0,2,0,1,0],[0,2,0,0,1,0,0,2,0,0,1,0],[2,0,0,0,1,0,2,0,0,0,1,0]], bpm: "105", gains: [0.7,1,0.9,0.8] }
-}
-
 let cloudPresetsCache = {}
 
 export async function loadAllPresets() {
@@ -33,11 +28,9 @@ export async function loadAllPresets() {
           source: 'cloud'
         })
       })
-    } else {
-      addInternalPresets(presets)
     }
   } catch {
-    addInternalPresets(presets)
+    // Supabase no disponible — solo presets locales
   }
 
   // Local presets from localStorage
@@ -54,19 +47,8 @@ export async function loadAllPresets() {
   return presets
 }
 
-function addInternalPresets(presets) {
-  Object.keys(INTERNAL_PRESETS).forEach(name => {
-    presets.push({
-      key: 'internal_' + name,
-      label: '⭐ ' + name,
-      source: 'internal'
-    })
-  })
-}
-
 export function getPresetData(key) {
   if (key.startsWith('cloud_')) return cloudPresetsCache[key.replace('cloud_', '')]
-  if (key.startsWith('internal_')) return INTERNAL_PRESETS[key.replace('internal_', '')]
   return JSON.parse(localStorage.getItem(key))
 }
 
@@ -75,7 +57,7 @@ export function saveLocalPreset(name, data) {
 }
 
 export function deleteLocalPreset(key) {
-  if (key.startsWith('internal_') || key.startsWith('cloud_')) return false
+  if (key.startsWith('cloud_')) return false
   localStorage.removeItem(key)
   return true
 }
