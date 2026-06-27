@@ -3,6 +3,9 @@ import { useRef, useEffect } from 'react'
 export default function CircleCanvas({ engine, instruments, steps, grid, showNeon, showBeams, showGlow, onStepToggle }) {
   const canvasRef = useRef(null)
   const animRef = useRef(null)
+  // Tamaño lógico (CSS px) y devicePixelRatio actuales, para dibujar nítido en retina/móvil
+  const sizeRef = useRef(500)
+  const dprRef = useRef(1)
 
   // Mirror props into refs so the RAF loop always reads latest values
   const propsRef = useRef({ steps, grid, showNeon, showBeams, showGlow })
@@ -10,16 +13,19 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
     propsRef.current = { steps, grid, showNeon, showBeams, showGlow }
   }, [steps, grid, showNeon, showBeams, showGlow])
 
-  // Resize
+  // Resize — backing store en píxeles físicos (× dpr) pero medidas lógicas en CSS px
   useEffect(() => {
     const canvas = canvasRef.current
     function resize() {
       const maxCircle = 500
       const size = Math.min(maxCircle, window.innerWidth - 20)
-      canvas.width = size
-      canvas.height = size
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = Math.round(size * dpr)
+      canvas.height = Math.round(size * dpr)
       canvas.style.width = size + 'px'
       canvas.style.height = size + 'px'
+      sizeRef.current = size
+      dprRef.current = dpr
     }
     resize()
     window.addEventListener('resize', resize)
@@ -39,12 +45,14 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
 
       const { steps: s, grid: g, showNeon: neon, showBeams: beams, showGlow: glow } = propsRef.current
       const playbackPos = eng.getPlaybackPos()
-      const currentStep = eng.getCurrentStep()
       const waveHistory = eng.getWaveHistory()
       const activeNotes = eng.getActiveNotes()
       const isPlaying = eng.isPlayingNow()
 
-      const w = canvas.width, h = canvas.height
+      // Escala el contexto al dpr y trabaja en coordenadas lógicas (CSS px)
+      const dpr = dprRef.current
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const w = sizeRef.current, h = sizeRef.current
       ctx.clearRect(0, 0, w, h)
       const centerX = w / 2, centerY = h / 2
       const scale = w / 500
@@ -142,21 +150,14 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
       ctx.fillStyle = 'rgba(0,0,0,0.3)'
       ctx.fill()
 
-      // Beams
+      // Beams — estela de luz que deja cada golpe sobre su anillo.
+      // La antigüedad se mide con el reloj del AudioContext (mismo que note.startTime).
       if (beams) {
-        const now = performance.now() / 1000
+        const audioNow = eng.getCurrentTime()
         for (let bi = activeNotes.length - 1; bi >= 0; bi--) {
           const note = activeNotes[bi]
-          const elapsed = (eng.isPlayingNow() ? (performance.now() / 1000) : 0) === 0
-            ? 0
-            : (performance.now() / 1000) - (performance.now() / 1000 - (note.duration - 0))
-
-          // Use audio context time for proper elapsed calculation
-          // We approximate by checking startTime in the note
-          const noteElapsed = eng.getPlaybackPos() !== undefined ?
-            Math.max(0, (Date.now() / 1000) % 100 - (note.startTime % 100)) : 0
-
-          if (noteElapsed > note.duration + 0.1) continue
+          const noteElapsed = audioNow - note.startTime
+          if (noteElapsed < 0 || noteElapsed > note.duration + 0.1) continue
 
           const inst = instruments[note.instIdx]
           const alpha = Math.max(0, 1 - (noteElapsed / (note.duration + 0.1)))
@@ -185,7 +186,7 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
     return () => cancelAnimationFrame(animRef.current)
   }, [engine, instruments])
 
-  // Mouse/Touch events
+  // Mouse/Touch events — trabajan en coordenadas lógicas (CSS px) vía getBoundingClientRect
   useEffect(() => {
     const canvas = canvasRef.current
     const eng = engine
@@ -196,7 +197,7 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
 
     function getCanvasCoords(clientX, clientY) {
       const rect = canvas.getBoundingClientRect()
-      const halfSize = canvas.width / 2
+      const halfSize = rect.width / 2
       return {
         mx: clientX - rect.left - halfSize,
         my: clientY - rect.top - halfSize
@@ -220,7 +221,8 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
     function handleClick(clientX, clientY) {
       const { mx, my } = getCanvasCoords(clientX, clientY)
       const dist = Math.sqrt(mx * mx + my * my)
-      const clickScale = canvas.width / 500
+      const rect = canvas.getBoundingClientRect()
+      const clickScale = rect.width / 500
       const g = propsRef.current.grid
 
       instruments.forEach((inst, i) => {

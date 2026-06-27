@@ -3,23 +3,29 @@ import { useRef, useEffect } from 'react'
 export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
   const canvasRef = useRef(null)
   const animRef = useRef(null)
+  // Dimensiones lógicas (CSS px) y devicePixelRatio actuales, para dibujar nítido
+  const dimsRef = useRef({ w: 800, h: 300 })
+  const dprRef = useRef(1)
 
   const propsRef = useRef({ steps, vizMode })
   useEffect(() => {
     propsRef.current = { steps, vizMode }
   }, [steps, vizMode])
 
-  // Resize
+  // Resize — backing store en píxeles físicos (× dpr), medidas lógicas en CSS px
   useEffect(() => {
     const canvas = canvasRef.current
     function resize() {
       const maxWave = 800
       const waveWidth = Math.min(maxWave, window.innerWidth - 20)
       const waveHeight = Math.max(200, Math.round(waveWidth * 300 / 800))
-      canvas.width = waveWidth
-      canvas.height = waveHeight
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = Math.round(waveWidth * dpr)
+      canvas.height = Math.round(waveHeight * dpr)
       canvas.style.width = waveWidth + 'px'
       canvas.style.height = waveHeight + 'px'
+      dimsRef.current = { w: waveWidth, h: waveHeight }
+      dprRef.current = dpr
     }
     resize()
     window.addEventListener('resize', resize)
@@ -41,7 +47,10 @@ export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
       const isPlaying = eng.isPlayingNow()
       const { dataArray, bufferLength } = eng.getAnalyserData()
 
-      const wW = canvas.width, wH = canvas.height
+      // Escala el contexto al dpr y trabaja en coordenadas lógicas (CSS px)
+      const dpr = dprRef.current
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      const wW = dimsRef.current.w, wH = dimsRef.current.h
       ctx.fillStyle = '#121212'
       ctx.fillRect(0, 0, wW, wH)
 

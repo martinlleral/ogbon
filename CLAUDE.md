@@ -8,7 +8,8 @@ App web para composición y visualización de ritmos de percusión afrobrasileñ
 - Tailwind CSS 4
 - Web Audio API (síntesis FM + membrana física)
 - Canvas API (visualización circular + ondas)
-- Supabase (almacenamiento de presets en la nube)
+- Presets: built-in (en código) + localStorage + import/export de archivos `.ogbon`
+  (sin backend; 100% offline)
 
 ## Estructura
 ```
@@ -17,7 +18,7 @@ src/
 ├── index.css
 ├── audio/
 │   ├── engine.js      # Motor de síntesis y secuenciador (Web Audio API)
-│   └── presets.js     # Gestión de presets (Supabase, localStorage, internos)
+│   └── presets.js     # Gestión de presets (built-in, localStorage, import/export)
 └── components/
     ├── Ogbon.jsx          # Componente principal (estado, controls)
     ├── CircleCanvas.jsx   # Visualización circular interactiva
@@ -30,9 +31,13 @@ src/
 - URL: https://martinlleral.github.io/ogbon
 
 ## Seguridad
-- Credenciales Supabase en `.env` (no commitear)
-- Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`
-- GitHub Actions usa secrets para el build
+- Sin backend ni credenciales: la app es 100% estática y offline.
+- No se commitea `.env` ni secretos (no hacen falta).
+
+## Cultura
+- Ogbón representa percusión sagrada de Candomblé (tradición religiosa viva).
+- Los presets son aproximaciones didácticas con fuente y nivel de confianza declarados.
+- Ver `docs/VALIDACION-CULTURAL.md` antes de publicar presets como "auténticos".
 
 ## Convenciones
 - Componentes React con hooks funcionales

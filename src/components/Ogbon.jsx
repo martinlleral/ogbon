@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createAudioEngine } from '../audio/engine'
-import { loadAllPresets, getPresetData, saveLocalPreset, deleteLocalPreset, exportPreset, importPreset } from '../audio/presets'
+import { loadAllPresets, getPresetData, getPresetMeta, getDefaultPreset, deriveGridShape, saveLocalPreset, deleteLocalPreset, exportPreset, importPreset } from '../audio/presets'
 import CircleCanvas from './CircleCanvas'
 import WaveCanvas from './WaveCanvas'
 
@@ -19,27 +19,36 @@ const MEASURES_OPTIONS = [
   { value: 8, label: '8 Compases' }
 ]
 
+const DEFAULT_PRESET = getDefaultPreset()
+
 export default function Ogbon() {
   const [playing, setPlaying] = useState(false)
-  const [bpm, setBpm] = useState(110)
-  const [gridType, setGridType] = useState(12)
-  const [measures, setMeasures] = useState(1)
-  const [steps, setSteps] = useState(() => INSTRUMENTS.map(() => Array(12).fill(0)))
-  const [gains, setGains] = useState(() => INSTRUMENTS.map(i => i.gain))
+  const [bpm, setBpm] = useState(DEFAULT_PRESET.bpm)
+  const [gridType, setGridType] = useState(DEFAULT_PRESET.gridType)
+  const [measures, setMeasures] = useState(DEFAULT_PRESET.measures)
+  const [steps, setSteps] = useState(() => DEFAULT_PRESET.steps.map(r => [...r]))
+  const [gains, setGains] = useState(() => [...DEFAULT_PRESET.gains])
   const [showNeon, setShowNeon] = useState(true)
   const [showBeams, setShowBeams] = useState(true)
   const [showGlow, setShowGlow] = useState(true)
   const [vizMode, setVizMode] = useState('parallel')
   const [presetList, setPresetList] = useState([])
-  const [selectedPreset, setSelectedPreset] = useState('Cargar...')
+  const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
+  const [presetMeta, setPresetMeta] = useState(() => getPresetMeta('builtin_ijexa'))
   const [measuresOptions, setMeasuresOptions] = useState(MEASURES_OPTIONS)
 
   const engineRef = useRef(null)
   const fileInputRef = useRef(null)
 
-  // Create engine once
+  // Create engine once, con el toque por defecto (ijexá) ya cargado para no abrir mudo
   useEffect(() => {
     engineRef.current = createAudioEngine(INSTRUMENTS)
+    engineRef.current.applyPreset({
+      grid: DEFAULT_PRESET.grid,
+      steps: DEFAULT_PRESET.steps.map(r => [...r]),
+      bpm: DEFAULT_PRESET.bpm,
+      gains: [...DEFAULT_PRESET.gains]
+    })
     return () => engineRef.current?.destroy()
   }, [])
 
@@ -103,7 +112,7 @@ export default function Ogbon() {
 
   const handlePresetChange = useCallback((key) => {
     setSelectedPreset(key)
-    if (key === 'Cargar...') return
+    if (key === 'Cargar...') { setPresetMeta(null); return }
     const data = getPresetData(key)
     if (!data) return
     const result = engineRef.current.applyPreset(data)
@@ -111,70 +120,78 @@ export default function Ogbon() {
     setBpm(result.bpm)
     setGains(result.gains)
     setPlaying(false)
+    setPresetMeta(getPresetMeta(key))
 
-    // Determine gridType and measures
-    let baseGrid = 12, m = 1
-    if (result.grid % 16 === 0) { baseGrid = 16; m = result.grid / 16 }
-    else if (result.grid % 12 === 0) { baseGrid = 12; m = result.grid / 12 }
-    setGridType(baseGrid)
+    // Restaurar la grilla exacta con la que se guardó (formato v2) o derivarla
+    const { gridType: gt, measures: m } = deriveGridShape({ ...data, grid: result.grid })
+    setGridType(gt)
     setMeasures(m)
-
-    // Add measures option if not present
     if (!measuresOptions.find(o => o.value === m)) {
       setMeasuresOptions(prev => [...prev, { value: m, label: `${m} Compases` }])
     }
   }, [measuresOptions])
 
   const handleSave = useCallback(() => {
-    const name = prompt('Nombre del ritmo (ej: Kabila, Ijexá):')
+    const name = prompt('Nombre del ritmo:')
     if (!name) return
-    saveLocalPreset(name, { grid, steps, bpm: String(bpm), gains })
+    saveLocalPreset(name, { gridType, measures, grid, steps, bpm, gains })
     loadAllPresets().then(setPresetList)
-  }, [grid, steps, bpm, gains])
+  }, [gridType, measures, grid, steps, bpm, gains])
 
   const handleDelete = useCallback(() => {
     if (selectedPreset === 'Cargar...') return
-    if (selectedPreset.startsWith('internal_') || selectedPreset.startsWith('cloud_')) {
-      alert('Los presets de la nube (⭐/☁) no se pueden borrar desde aquí.')
+    if (selectedPreset.startsWith('builtin_')) {
+      alert('Los toques incluidos (🥁) no se pueden borrar.')
       return
     }
     if (confirm(`¿Eliminar el preset "${selectedPreset.replace('ogbon_', '')}"?`)) {
       deleteLocalPreset(selectedPreset)
       loadAllPresets().then(setPresetList)
       setSelectedPreset('Cargar...')
+      setPresetMeta(null)
     }
   }, [selectedPreset])
 
   const handleExport = useCallback(() => {
     let exportName = 'ritmo_nuevo'
     if (selectedPreset !== 'Cargar...') {
-      exportName = selectedPreset.replace('internal_', '').replace('ogbon_', '').replace('cloud_', '')
+      exportName = selectedPreset.replace('builtin_', '').replace('ogbon_', '')
     } else {
-      const name = prompt('Introduce un nombre para el archivo:', 'Mi Ritmo')
+      const name = prompt('Nombre para el archivo:', 'Mi Ritmo')
       if (!name) return
       exportName = name
     }
-    exportPreset(exportName, { name: exportName, grid, steps, bpm: String(bpm), gains })
-  }, [selectedPreset, grid, steps, bpm, gains])
+    exportPreset(exportName, { name: exportName, gridType, measures, grid, steps, bpm, gains })
+  }, [selectedPreset, gridType, measures, grid, steps, bpm, gains])
 
   const handleImport = useCallback(async (e) => {
     const file = e.target.files[0]
     if (!file) return
     const data = await importPreset(file)
     if (!data) return
+    // Validar archivos externos: 4 instrumentos y grilla representable (múltiplo de 12 o 16)
+    const total = data.grid || (Array.isArray(data.steps) && data.steps[0] ? data.steps[0].length : 0)
+    if (!Array.isArray(data.steps) || data.steps.length !== 4 || (total % 12 !== 0 && total % 16 !== 0)) {
+      alert('Archivo .ogbon inválido o incompatible.')
+      e.target.value = ''
+      return
+    }
     const result = engineRef.current.applyPreset(data)
     setSteps(result.steps)
     setBpm(result.bpm)
     setGains(result.gains)
     setPlaying(false)
+    setSelectedPreset('Cargar...')
+    setPresetMeta(null)
 
-    let baseGrid = 12, m = 1
-    if (result.grid % 16 === 0) { baseGrid = 16; m = result.grid / 16 }
-    else if (result.grid % 12 === 0) { baseGrid = 12; m = result.grid / 12 }
-    setGridType(baseGrid)
+    const { gridType: gt, measures: m } = deriveGridShape({ ...data, grid: result.grid })
+    setGridType(gt)
     setMeasures(m)
+    if (!measuresOptions.find(o => o.value === m)) {
+      setMeasuresOptions(prev => [...prev, { value: m, label: `${m} Compases` }])
+    }
     e.target.value = ''
-  }, [])
+  }, [measuresOptions])
 
   const btnClass = 'bg-[#333] text-white border border-[#555] px-4 py-2 rounded cursor-pointer transition-all duration-300 hover:bg-[var(--gold)] hover:text-black'
   const activeBtnClass = 'bg-[#e74c3c] text-white border border-[#555] px-4 py-2 rounded cursor-pointer transition-all duration-300 hover:bg-[var(--gold)] hover:text-black'
@@ -182,7 +199,11 @@ export default function Ogbon() {
 
   return (
     <div className="flex flex-col items-center">
-      <h1 className="text-[var(--gold)] my-5 font-light tracking-wider text-2xl">OGBÓN DIÁSPORA</h1>
+      <h1 className="text-[var(--gold)] mt-5 mb-1 font-light tracking-wider text-2xl">OGBÓN DIÁSPORA</h1>
+      <p className="text-xs opacity-60 mb-4 text-center max-w-md px-2">
+        Círculos de Axé · secuenciador de ritmos de percusión de Candomblé.
+        Tradición afrobrasileña viva, tratada con respeto.
+      </p>
 
       {/* Controls */}
       <div className="bg-[#1e1e1e] p-4 rounded-xl flex flex-wrap justify-center gap-4 items-center mb-5 w-full shadow-lg max-sm:p-2.5 max-sm:gap-2">
@@ -210,6 +231,17 @@ export default function Ogbon() {
         <button className={btnClass} onClick={() => fileInputRef.current?.click()} title="Cargar un ritmo desde un archivo">Importar</button>
         <input ref={fileInputRef} type="file" className="hidden" accept=".ogbon" onChange={handleImport} />
       </div>
+
+      {/* Contexto cultural del toque seleccionado */}
+      {presetMeta && (
+        <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 mb-5 max-w-2xl text-sm">
+          <div className="text-[var(--gold)] font-semibold mb-1">Orixá: {presetMeta.orixa}</div>
+          <p className="opacity-90 leading-snug">{presetMeta.nota}</p>
+          <p className="opacity-60 text-xs mt-2">Fuente: {presetMeta.fuente}</p>
+          <p className="opacity-60 text-xs">Confianza: {presetMeta.confianza}</p>
+          <p className="opacity-50 text-xs mt-1 italic">Aproximación didáctica, pendiente de validación comunitaria.</p>
+        </div>
+      )}
 
       {/* Visual effects toggles */}
       <div className="bg-[#1e1e1e] p-2.5 rounded-xl flex flex-wrap justify-center gap-4 items-center mb-5 text-sm opacity-90 max-sm:gap-2">

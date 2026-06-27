@@ -56,15 +56,23 @@ export function createAudioEngine(instruments) {
   }
   createNoiseBuffer()
 
+  // Desconexión segura: un nodo ya desconectado (o detenido) lanza; lo ignoramos.
+  function safeDisconnect(node) {
+    try { node.disconnect() } catch { /* nodo ya desconectado */ }
+  }
+
   // BPM
   let bpm = 110
   function getBPM() { return bpm }
   function getLoopDuration() { return (60 / getBPM()) * (grid / 4) }
 
-  // Scheduling
+  // Scheduling — patrón look-ahead de Chris Wilson (web.dev "A Tale of Two Clocks").
+  // El timer JS dispara cada `lookahead` ms y agenda notas hasta `scheduleAheadTime` s
+  // al futuro contra ctx.currentTime (reloj de hardware), desacoplando el jitter del
+  // main thread (animación del canvas, GC) del pulso sample-accurate.
   let nextNoteTime = 0
-  const lookahead = 10.0
-  const scheduleAheadTime = 0.05
+  const lookahead = 25.0
+  const scheduleAheadTime = 0.1
   let schedulerTimeout = null
 
   function addToHistory(instIdx, amplitude) {
@@ -85,8 +93,14 @@ export function createAudioEngine(instruments) {
   }
 
   function playSound(instIdx, type, isClosed, time = ctx.currentTime) {
-    while (activeNotes.length > 50) activeNotes.shift()
     const now = time
+    // Podar notas viejas (ya no visibles como haces) usando el reloj del AudioContext,
+    // así activeNotes no crece sin control y el dibujo no recorre notas muertas.
+    const noteCutoff = now - 1.5
+    for (let k = activeNotes.length - 1; k >= 0; k--) {
+      if (activeNotes[k].startTime < noteCutoff) activeNotes.splice(k, 1)
+    }
+    while (activeNotes.length > 50) activeNotes.shift()
     const inst = instruments[instIdx]
 
     const instGain = ctx.createGain()
@@ -146,13 +160,13 @@ export function createAudioEngine(instruments) {
 
       const lastOsc = metalOscs[metalOscs.length - 1]
       lastOsc.onended = () => {
-        metalOscs.forEach(o => { try { o.disconnect() } catch(e){} })
-        metalGains.forEach(g => { try { g.disconnect() } catch(e){} })
-        try { click.disconnect() } catch(e){}
-        try { clickGain.disconnect() } catch(e){}
-        try { instGain.disconnect() } catch(e){}
-        try { filter.disconnect() } catch(e){}
-        try { panner.disconnect() } catch(e){}
+        metalOscs.forEach(safeDisconnect)
+        metalGains.forEach(safeDisconnect)
+        safeDisconnect(click)
+        safeDisconnect(clickGain)
+        safeDisconnect(instGain)
+        safeDisconnect(filter)
+        safeDisconnect(panner)
       }
 
       addToHistory(instIdx, 0.8)
@@ -218,18 +232,18 @@ export function createAudioEngine(instruments) {
       noiseSource.stop(now + 0.1)
 
       bodyOsc.onended = () => {
-        try { bodyOsc.disconnect() } catch(e){}
-        try { bodyGain.disconnect() } catch(e){}
-        try { harmOsc.disconnect() } catch(e){}
-        try { harmGain.disconnect() } catch(e){}
-        try { harm2Osc.disconnect() } catch(e){}
-        try { harm2Gain.disconnect() } catch(e){}
-        try { noiseSource.disconnect() } catch(e){}
-        try { nFilter.disconnect() } catch(e){}
-        try { nGain.disconnect() } catch(e){}
-        try { instGain.disconnect() } catch(e){}
-        try { filter.disconnect() } catch(e){}
-        try { panner.disconnect() } catch(e){}
+        safeDisconnect(bodyOsc)
+        safeDisconnect(bodyGain)
+        safeDisconnect(harmOsc)
+        safeDisconnect(harmGain)
+        safeDisconnect(harm2Osc)
+        safeDisconnect(harm2Gain)
+        safeDisconnect(noiseSource)
+        safeDisconnect(nFilter)
+        safeDisconnect(nGain)
+        safeDisconnect(instGain)
+        safeDisconnect(filter)
+        safeDisconnect(panner)
       }
 
       addToHistory(instIdx, isClosed ? 0.6 : 1.0)
@@ -321,6 +335,7 @@ export function createAudioEngine(instruments) {
     setGain(idx, value) { instruments[idx].gain = value },
 
     getPlaybackPos() { return currentPlaybackPos },
+    getCurrentTime() { return ctx.currentTime },
     getCurrentStep() { return currentStep },
     getGrid() { return grid },
     getActiveNotes() { return activeNotes },
