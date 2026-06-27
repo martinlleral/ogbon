@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createAudioEngine } from '../audio/engine'
+import { useWakeLock } from '../hooks/useWakeLock'
 import { loadAllPresets, getPresetData, getPresetMeta, getDefaultPreset, deriveGridShape, saveLocalPreset, deleteLocalPreset, exportPreset, importPreset } from '../audio/presets'
 import CircleCanvas from './CircleCanvas'
 import WaveCanvas from './WaveCanvas'
@@ -39,6 +40,9 @@ export default function Ogbon() {
 
   const engineRef = useRef(null)
   const fileInputRef = useRef(null)
+
+  // Mantener la pantalla encendida mientras suena un ritmo (no-op si no hay soporte)
+  useWakeLock(playing)
 
   // Create engine once, con el toque por defecto (ijexá) ya cargado para no abrir mudo
   useEffect(() => {
@@ -198,43 +202,44 @@ export default function Ogbon() {
   const selectClass = 'bg-[#333] text-white border border-[#555] p-2 rounded'
 
   return (
-    <div className="flex flex-col items-center">
-      <h1 className="text-[var(--gold)] mt-5 mb-1 font-light tracking-wider text-2xl">OGBÓN DIÁSPORA</h1>
+    <div className="flex flex-col items-center w-full pb-28">
+      <h1 className="text-[var(--gold)] mt-4 mb-1 font-light tracking-wider text-xl sm:text-2xl">OGBÓN DIÁSPORA</h1>
       <p className="text-xs opacity-60 mb-4 text-center max-w-md px-2">
         Círculos de Axé · secuenciador de ritmos de percusión de Candomblé.
         Tradición afrobrasileña viva, tratada con respeto.
       </p>
 
-      {/* Controls */}
-      <div className="bg-[#1e1e1e] p-4 rounded-xl flex flex-wrap justify-center gap-4 items-center mb-5 w-full shadow-lg max-sm:p-2.5 max-sm:gap-2">
-        <select className={selectClass} value={gridType} onChange={e => handleGridTypeChange(e.target.value)}>
-          <option value={12}>Grilla: 12/8 (Ternaria)</option>
-          <option value={16}>Grilla: 4/4 (Cuaternaria)</option>
-        </select>
-        <select className={selectClass} value={measures} onChange={e => handleMeasuresChange(e.target.value)}>
-          {measuresOptions.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <button className={playing ? activeBtnClass : btnClass} onClick={handleTogglePlay}>
-          {playing ? 'STOP' : 'PLAY'}
-        </button>
-        <input type="range" min="10" max="180" value={bpm} onChange={e => setBpm(parseInt(e.target.value))} />
-        <span className="text-sm">{bpm} BPM</span>
-        <button className={btnClass} onClick={handleSave}>Guardar Preset</button>
-        <button className={btnClass} onClick={handleDelete}>Eliminar</button>
-        <select className={selectClass} value={selectedPreset} onChange={e => handlePresetChange(e.target.value)}>
-          <option>Cargar...</option>
-          {presetList.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
-        <button className={btnClass} onClick={handleExport} title="Descargar este ritmo como archivo">Exportar</button>
-        <button className={btnClass} onClick={() => fileInputRef.current?.click()} title="Cargar un ritmo desde un archivo">Importar</button>
-        <input ref={fileInputRef} type="file" className="hidden" accept=".ogbon" onChange={handleImport} />
+      {/* Patrón + presets */}
+      <div className="w-full max-w-2xl bg-[#1e1e1e] rounded-xl p-3 mb-3 flex flex-col gap-2 shadow-lg">
+        <div className="flex flex-wrap justify-center gap-2">
+          <select className={selectClass} value={gridType} onChange={e => handleGridTypeChange(e.target.value)}>
+            <option value={12}>Grilla: 12/8 (Ternaria)</option>
+            <option value={16}>Grilla: 4/4 (Cuaternaria)</option>
+          </select>
+          <select className={selectClass} value={measures} onChange={e => handleMeasuresChange(e.target.value)}>
+            {measuresOptions.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2 items-center">
+          <select className={`${selectClass} flex-1 min-w-0`} value={selectedPreset} onChange={e => handlePresetChange(e.target.value)}>
+            <option>Cargar...</option>
+            {presetList.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </select>
+          <button className={btnClass} onClick={handleSave}>Guardar</button>
+        </div>
+        <div className="flex flex-wrap justify-center gap-4 text-xs opacity-70 pt-1">
+          <button className="hover:text-[var(--gold)] transition-colors" onClick={handleExport} title="Descargar este ritmo como archivo">Exportar</button>
+          <button className="hover:text-[var(--gold)] transition-colors" onClick={() => fileInputRef.current?.click()} title="Cargar un ritmo desde un archivo">Importar</button>
+          <button className="hover:text-[var(--gold)] transition-colors" onClick={handleDelete}>Eliminar</button>
+          <input ref={fileInputRef} type="file" className="hidden" accept=".ogbon" onChange={handleImport} />
+        </div>
       </div>
 
       {/* Contexto cultural del toque seleccionado */}
       {presetMeta && (
-        <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 mb-5 max-w-2xl text-sm">
+        <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 mb-3 w-full max-w-2xl text-sm">
           <div className="text-[var(--gold)] font-semibold mb-1">Orixá: {presetMeta.orixa}</div>
           <p className="opacity-90 leading-snug">{presetMeta.nota}</p>
           <p className="opacity-60 text-xs mt-2">Fuente: {presetMeta.fuente}</p>
@@ -243,23 +248,35 @@ export default function Ogbon() {
         </div>
       )}
 
-      {/* Visual effects toggles */}
-      <div className="bg-[#1e1e1e] p-2.5 rounded-xl flex flex-wrap justify-center gap-4 items-center mb-5 text-sm opacity-90 max-sm:gap-2">
+      {/* Círculo — protagonista */}
+      <CircleCanvas
+        engine={engineRef}
+        instruments={INSTRUMENTS}
+        steps={steps}
+        grid={grid}
+        showNeon={showNeon}
+        showBeams={showBeams}
+        showGlow={showGlow}
+        onStepToggle={handleStepToggle}
+      />
+
+      {/* Efectos visuales */}
+      <div className="w-full max-w-2xl bg-[#1e1e1e] p-2.5 rounded-xl flex flex-wrap justify-center gap-2 items-center my-3 text-xs">
         <button className={showNeon ? activeBtnClass : btnClass} onClick={() => setShowNeon(v => !v)}>
-          Pulsos Neón: {showNeon ? 'ON' : 'OFF'}
+          Neón: {showNeon ? 'ON' : 'OFF'}
         </button>
         <button className={showBeams ? activeBtnClass : btnClass} onClick={() => setShowBeams(v => !v)}>
-          Haces de Luz: {showBeams ? 'ON' : 'OFF'}
+          Haces: {showBeams ? 'ON' : 'OFF'}
         </button>
         <button className={showGlow ? activeBtnClass : btnClass} onClick={() => setShowGlow(v => !v)}>
-          Anillos Brillantes: {showGlow ? 'ON' : 'OFF'}
+          Anillos: {showGlow ? 'ON' : 'OFF'}
         </button>
       </div>
 
       {/* Mixer */}
-      <div className="bg-[#1e1e1e] p-5 rounded-xl flex flex-wrap justify-center gap-6 mb-8 shadow-lg border border-[#333] max-sm:gap-2.5 max-sm:p-3 max-sm:flex-nowrap max-sm:overflow-x-auto">
+      <div className="w-full max-w-2xl bg-[#1e1e1e] p-4 rounded-xl flex justify-center gap-8 mb-3 shadow-lg border border-[#333] max-sm:gap-5">
         {INSTRUMENTS.map((inst, i) => (
-          <div key={inst.name} className="flex flex-col items-center gap-3 min-w-[70px] max-sm:min-w-[55px] max-sm:gap-2">
+          <div key={inst.name} className="flex flex-col items-center gap-3">
             <label className="text-[11px] uppercase tracking-widest font-bold" style={{ color: inst.color }}>{inst.name}</label>
             <input
               type="range"
@@ -274,33 +291,45 @@ export default function Ogbon() {
         ))}
       </div>
 
-      {/* Circle Canvas */}
-      <CircleCanvas
-        engine={engineRef}
-        instruments={INSTRUMENTS}
-        steps={steps}
-        grid={grid}
-        showNeon={showNeon}
-        showBeams={showBeams}
-        showGlow={showGlow}
-        onStepToggle={handleStepToggle}
-      />
-
-      {/* Wave Canvas */}
-      <div className="flex flex-col gap-2.5 mt-2.5">
+      {/* Ondas */}
+      <div className="flex flex-col gap-2.5 w-full items-center">
         <WaveCanvas
           engine={engineRef}
           instruments={INSTRUMENTS}
           steps={steps}
           vizMode={vizMode}
         />
-        <div className="text-center">
+        <button
+          className={btnClass}
+          onClick={() => setVizMode(v => v === 'parallel' ? 'master' : 'parallel')}
+        >
+          Modo: {vizMode === 'parallel' ? 'Ondas Paralelas' : 'Onda Transcendental'}
+        </button>
+      </div>
+
+      {/* Transporte fijo abajo — PLAY + BPM siempre a mano */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e1e1e]/95 backdrop-blur border-t border-[#444] shadow-[0_-4px_24px_rgba(0,0,0,0.6)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">
           <button
-            className={btnClass}
-            onClick={() => setVizMode(v => v === 'parallel' ? 'master' : 'parallel')}
+            onClick={handleTogglePlay}
+            aria-label={playing ? 'Detener' : 'Reproducir'}
+            className={`flex items-center justify-center rounded-full w-14 h-14 shrink-0 text-xl font-bold transition-transform duration-200 hover:scale-105 ${playing ? 'bg-[#e74c3c] text-white' : 'bg-[var(--gold)] text-black'}`}
           >
-            Modo: {vizMode === 'parallel' ? 'Ondas Paralelas' : 'Onda Transcendental'}
+            {playing ? '■' : '▶'}
           </button>
+          <input
+            type="range"
+            min="10"
+            max="180"
+            value={bpm}
+            onChange={e => setBpm(parseInt(e.target.value))}
+            className="flex-1 accent-[var(--gold)]"
+            aria-label="Tempo (BPM)"
+          />
+          <span className="text-sm tabular-nums w-16 text-right shrink-0">{bpm} BPM</span>
         </div>
       </div>
     </div>

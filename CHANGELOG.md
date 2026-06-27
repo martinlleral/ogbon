@@ -2,6 +2,27 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.6.0] — 2026-06-27 · "Móvil de verdad"
+
+Segunda iteración: la app se vuelve instalable y cómoda en el celular.
+
+### Added
+- **PWA instalable**: manifest + service worker (offline, precache de ~223 KB) +
+  íconos on-brand (192/512/maskable + apple-touch).
+- **Screen Wake Lock**: la pantalla no se apaga mientras suena un ritmo.
+
+### Changed
+- **Rediseño responsive móvil**: el transporte (PLAY + BPM) pasa a una **barra fija
+  inferior** siempre accesible con el pulgar; el **círculo protagoniza** (sube en la
+  página); los controles se agrupan por jerarquía (patrón → presets → secundarios).
+- **Viewport**: se permite pinch-zoom (accesibilidad) y se evita el zoom por doble-tap
+  accidental (`touch-action`); `viewport-fit=cover` para PWA a pantalla completa.
+
+### Fixed
+- Overflow horizontal en móvil (botones que se cortaban del viewport).
+
+---
+
 ## [2.5.0] — 2026-06-27 · "Cimientos"
 
 Primera iteración tras retomar el proyecto. Revisión técnica, research multiagente
@@ -52,4 +73,5 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.6.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.6.0
 [2.5.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.5.0

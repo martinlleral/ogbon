@@ -16,10 +16,14 @@ body {
   padding: 0 10px;
   box-sizing: border-box;
   overflow-x: hidden;
+  /* Evita el zoom por doble-tap accidental al tocar pasos rápido (sigue permitiendo pinch-zoom) */
+  touch-action: manipulation;
 }
 
 canvas {
   cursor: crosshair;
+  /* El canvas maneja sus propios gestos (scrubbing); que el navegador no interfiera */
+  touch-action: none;
 }
 
 /* Vertical range sliders — Tailwind can't handle writing-mode */
