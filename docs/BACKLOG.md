@@ -6,26 +6,24 @@ de donde salen las próximas iteraciones.
 ## Estado del proyecto (al 2026-06-27)
 
 - **En vivo:** https://martinlleral.github.io/ogbon/ (PWA instalable)
-- **Versión:** v2.6.0 · ver `../CHANGELOG.md` para el mapa de versiones completo
+- **Versión:** v2.7.0 · ver `../CHANGELOG.md` para el mapa de versiones completo
 - ✅ **Iteración 1 (v2.5.0) — Cimientos:** fix Haces + fidelidad de presets, nitidez
   retina, sin Supabase (offline), 3 toques con fuentes, ijexá al abrir.
 - ✅ **Iteración 2 (v2.6.0) — Móvil:** PWA instalable + offline, Screen Wake Lock,
   rediseño con transporte fijo abajo + círculo protagonista.
+- ✅ **Iteración 3 (v2.7.0) — Comodidad:** diálogos propios (modal input/confirm +
+  toasts) en vez de prompt/confirm/alert; hint de primer uso (localStorage);
+  accesibilidad en modales (teclado + prefers-reduced-motion); emoji 🥁→🪘; fix
+  import .ogbon corrupto.
 
-## ▶️ Próxima iteración: 3 — "Comodidad"
+## ▶️ Próxima iteración: 4 — a elegir con Martín
 
-Objetivo: pulir la experiencia de uso (estética limpia + primer uso claro).
-
-1. **Reemplazar los diálogos nativos feos** (`prompt`/`confirm`/`alert`) por componentes
-   propios en la estética dorada-oscura:
-   - Modal de input para "Guardar" (nombre del ritmo).
-   - Modal de confirmación para "Eliminar".
-   - Toast/aviso no-bloqueante para "builtin no se borra" e "import inválido".
-   - Implementación sugerida: un `<Modal>` reutilizable (o `<dialog>` estilizado) +
-     un `<Toast>`. Sin librerías nuevas.
-2. **Micro-onboarding**: hint "tocá un círculo para crear tu ritmo" la primera vez
-   (flag en localStorage para no repetir).
-3. **Feedback visual** al guardar/cargar un preset (un toast de confirmación).
+Candidatas (ver "Pendientes" abajo para el detalle):
+- 🎼 **Notación musical convencional** entre el círculo y las ondas (spike primero).
+- ♿ **Accesibilidad por teclado completa** en el secuenciador (patrón NYU). Ojo: en
+  v2.7.0 ya se cubrió el teclado en los *modales*, falta el secuenciador en sí.
+- 🤝 **Validación cultural** (arrancar contactos).
+- 🔧 Infra menor: CI `node-version` 20 → 24.
 
 ## Pendientes (evaluar/priorizar)
 
