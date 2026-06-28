@@ -5,8 +5,10 @@ import { useModal } from '../hooks/useModal'
 import { useToast } from '../hooks/useToast'
 import { loadAllPresets, getPresetData, getPresetMeta, getDefaultPreset, deriveGridShape, saveLocalPreset, deleteLocalPreset, exportPreset, importPreset } from '../audio/presets'
 import CircleCanvas from './CircleCanvas'
+import AccessibleGrid from './AccessibleGrid'
 import NotationCanvas from './NotationCanvas'
 import WaveCanvas from './WaveCanvas'
+import { nextStepValue } from '../audio/steps'
 import Modal from './Modal'
 import Toast from './Toast'
 import Onboarding from './Onboarding'
@@ -42,6 +44,7 @@ export default function Ogbon() {
   const [showGlow, setShowGlow] = useState(true)
   const [vizMode, setVizMode] = useState('bloom')
   const [practiceMode, setPracticeMode] = useState(true)
+  const [kbCursor, setKbCursor] = useState(null) // celda activa del teclado (la dibuja el círculo)
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
   const [presetMeta, setPresetMeta] = useState(() => getPresetMeta('builtin_ijexa'))
@@ -134,8 +137,7 @@ export default function Ogbon() {
     dismissHint() // primer toque: cerrar la ayuda de onboarding (idempotente)
     setSteps(prev => {
       const next = prev.map(row => [...row])
-      next[instIdx][stepIdx] = (next[instIdx][stepIdx] + 1) % 3
-      if (instIdx === 0 && next[instIdx][stepIdx] === 2) next[instIdx][stepIdx] = 0
+      next[instIdx][stepIdx] = nextStepValue(next[instIdx][stepIdx], instIdx)
       return next
     })
   }, [dismissHint])
@@ -254,7 +256,13 @@ export default function Ogbon() {
       setMeasuresOptions(prev => [...prev, { value: m, label: `${m} Compases` }])
     }
     e.target.value = ''
-    showToast('Ritmo importado', 'success')
+    // Métrica ambigua: sin gridType explícito y total divisible por 12 Y 16 (48, 96…) →
+    // no se puede saber si es 12/8 o 4/4. Se asume 12/8 (ternario) pero se avisa.
+    const ambiguous = !data.gridType && total % 48 === 0
+    showToast(
+      ambiguous ? 'Importado — métrica ambigua, se asumió 12/8 (guardalo para fijarla)' : 'Ritmo importado',
+      ambiguous ? 'info' : 'success'
+    )
   }, [measuresOptions, showToast])
 
   const btnClass = 'bg-[#333] text-white border border-[#555] px-4 py-2 rounded cursor-pointer transition-all duration-300 hover:bg-[var(--gold)] hover:text-black'
@@ -310,7 +318,7 @@ export default function Ogbon() {
       {/* Hint de primer uso (se va al tocar un círculo o al cerrarlo) */}
       {showHint && <Onboarding onDismiss={dismissHint} />}
 
-      {/* Círculo — protagonista */}
+      {/* Círculo — protagonista (visual). La interacción accesible va en AccessibleGrid. */}
       <CircleCanvas
         engine={engineRef}
         instruments={INSTRUMENTS}
@@ -320,6 +328,16 @@ export default function Ogbon() {
         showBeams={showBeams}
         showGlow={showGlow}
         onStepToggle={handleStepToggle}
+        kbCursor={kbCursor}
+      />
+      {/* Editor accesible (teclado + lector de pantalla) del mismo ritmo */}
+      <AccessibleGrid
+        instruments={INSTRUMENTS}
+        steps={steps}
+        grid={grid}
+        engine={engineRef}
+        onStepToggle={handleStepToggle}
+        onCursor={setKbCursor}
         practiceMode={practiceMode}
       />
 

@@ -2,6 +2,34 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.10.0] — 2026-06-28 · "Accesible de verdad"
+
+Sexta iteración: **accesibilidad nivel 2** (una grilla accesible real para teclado y lector
+de pantalla) + mantenimiento de infraestructura.
+
+### Added
+- **Editor accesible del ritmo** (`AccessibleGrid`): una grilla DOM real (`role="grid"`,
+  una celda por golpe) navegable con flechas (roving tabindex), editable con Enter/Espacio,
+  con etiqueta por celda ("Rum, tiempo 3 de 16: abierto") y anuncios para lector de
+  pantalla. Es la representación accesible del **mismo** ritmo que muestran el círculo y la
+  partitura. Atajos 1–4 por instrumento, Inicio/Fin. Reemplaza el hack de
+  `role="application"` sobre el canvas (soporte irregular en lectores de pantalla).
+- Al navegar por teclado, un **cursor dorado** aparece en el círculo en la celda activa
+  (feedback visual para quien usa teclado y ve).
+
+### Changed
+- El **círculo** pasa a ser puramente visual (`aria-hidden`): la interacción por teclado y
+  lector de pantalla vive en el editor accesible. La lógica de los golpes se unificó en
+  `audio/steps.js` (una sola fuente, sin duplicación).
+- **`prefers-reduced-motion`**: el círculo suprime la animación decorativa (haces, glow,
+  neón) para quien pide menos movimiento; la aguja (feedback funcional) se mantiene.
+- **Infra (CI)**: el workflow de deploy sube a **Node 24** y a las últimas versiones de las
+  GitHub Actions, silenciando la deprecación de Node 20.
+- Importar un `.ogbon` con métrica **ambigua** (48/96 pasos sin grilla explícita) ahora
+  **avisa** que se asumió 12/8.
+
+---
+
 ## [2.9.1] — 2026-06-28 · "Pulido"
 
 ### Changed
@@ -172,6 +200,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.10.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.10.0
 [2.9.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.1
 [2.9.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.0
 [2.8.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.8.0

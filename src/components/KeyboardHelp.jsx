@@ -37,8 +37,9 @@ export default function KeyboardHelp({ practiceMode, onTogglePractice }) {
           </tbody>
         </table>
         <p className="opacity-50 text-xs leading-snug">
-          Primero hacé foco en el círculo (con Tab o tocándolo). Inspirado en el patrón
-          “Non-Visual Beats” (NYU + Ability Project).
+          Hacé foco en el <strong>editor del ritmo</strong> con Tab (es una grilla accesible
+          para lector de pantalla) y movéte con las flechas; el cursor dorado aparece en el
+          círculo. Inspirado en el patrón “Non-Visual Beats” (NYU + Ability Project).
         </p>
       </div>
     </CollapsiblePanel>
