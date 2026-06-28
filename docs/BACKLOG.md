@@ -3,10 +3,10 @@
 Ideas y mejoras pendientes de evaluar/priorizar. No es un compromiso; es el "compost"
 de donde salen las próximas iteraciones.
 
-## Estado del proyecto (al 2026-06-27)
+## Estado del proyecto (al 2026-06-28)
 
 - **En vivo:** https://martinlleral.github.io/ogbon/ (PWA instalable)
-- **Versión:** v2.7.0 · ver `../CHANGELOG.md` para el mapa de versiones completo
+- **Versión:** v2.8.0 · ver `../CHANGELOG.md` para el mapa de versiones completo
 - ✅ **Iteración 1 (v2.5.0) — Cimientos:** fix Haces + fidelidad de presets, nitidez
   retina, sin Supabase (offline), 3 toques con fuentes, ijexá al abrir.
 - ✅ **Iteración 2 (v2.6.0) — Móvil:** PWA instalable + offline, Screen Wake Lock,
@@ -15,14 +15,18 @@ de donde salen las próximas iteraciones.
   toasts) en vez de prompt/confirm/alert; hint de primer uso (localStorage);
   accesibilidad en modales (teclado + prefers-reduced-motion); emoji 🥁→🪘; fix
   import .ogbon corrupto.
+- ✅ **Iteración 4 (v2.8.0) — Accesible:** navegación por teclado del secuenciador
+  (patrón Non-Visual Beats), modo Práctica, foco visible + ARIA-live (ver
+  `ACCESIBILIDAD.md`); UI con menos ruido (paneles desplegables, ecualizador pegado al
+  círculo); fix: sumar compases DUPLICA el ritmo en vez de borrarlo.
 
-## ▶️ Próxima iteración: 4 — a elegir con Martín
+## ▶️ Próxima iteración: 5 — a elegir con Martín
 
 Candidatas (ver "Pendientes" abajo para el detalle):
 - 🎼 **Notación musical convencional** entre el círculo y las ondas (spike primero).
-- ♿ **Accesibilidad por teclado completa** en el secuenciador (patrón NYU). Ojo: en
-  v2.7.0 ya se cubrió el teclado en los *modales*, falta el secuenciador en sí.
+- 🌊 **Evaluar las ondas** (paralelas vs transcendental): rol, potencial, si se mantienen.
 - 🤝 **Validación cultural** (arrancar contactos).
+- ♿ **Accesibilidad nivel 2**: DOM accesible paralelo + pruebas con usuarios reales.
 - 🔧 Infra menor: CI `node-version` 20 → 24.
 
 ## Pendientes (evaluar/priorizar)
@@ -35,9 +39,12 @@ sincronizar playhead, **VexFlow** vs **abcjs** vs render propio SVG. Empezar por
 **Dependencia cultural:** validar la notación con la comunidad (ver `VALIDACION-CULTURAL.md`).
 **Origen:** pedido de Martín, 2026-06-27.
 
-### ♿ Accesibilidad por teclado (patrón NYU "Non-Visual Beats")
-Navegación por teclado (TAB/flechas/1-4/SPACE) + modos de audio (Práctica/Sonificación/
-Performance). Inclusivo **y** oro de portafolio UX. Fuente en `RESEARCH.md`.
+### ♿ Accesibilidad nivel 2 (sobre lo hecho en v2.8.0)
+Ya **HECHO** en v2.8.0: navegación por teclado del secuenciador + modo Práctica +
+región ARIA-live (ver `ACCESIBILIDAD.md`). Falta el **nivel 2**: DOM accesible paralelo
+(un elemento por celda, `role="gridcell"`/`aria-pressed`) para exploración libre con
+lector de pantalla; más modos de audio (sonificación de la estructura métrica); y
+**pruebas con usuarios reales** de VoiceOver / NVDA. Fuente en `RESEARCH.md`.
 
 ### 🤝 Validación cultural
 Arrancar los contactos del plan (`VALIDACION-CULTURAL.md`): etnomusicólogo / comunidad,
