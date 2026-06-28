@@ -2,6 +2,43 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.11.0] — 2026-06-28 · "Métrica y partitura fina"
+
+Séptima iteración: **sonificar la estructura métrica** (accesibilidad nivel 2, lo que
+faltaba) + **refinar la partitura** sin agregar ruido visual.
+
+### Added
+- **Guía métrica** (panel ⌨, apagada por defecto): sonifica la estructura del compás con un
+  **click sintético** jerárquico — **tiempo fuerte** (downbeat, agudo) / **pulso** (medio) /
+  **subdivisión** (tenue). Al **navegar** con el teclado se oye la posición métrica (te
+  ubicás en la grilla sin verla); al **reproducir** funciona como **claqueta** con el
+  downbeat acentuado. El click se enruta directo al destino de audio (no pasa por el
+  analizador): es una guía, no parte de la música, así que **no contamina** la visualización
+  del Axé. Es el segundo "modo de audio" del patrón Non-Visual Beats (NYU). Ver
+  [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md).
+- **Partitura — puntillos**: una nota que dura 1,5× un valor binario (p. ej. un golpe
+  sostenido todo un pulso en 12/8 = **negra con puntillo**) ahora lleva su **puntillo**, así
+  no se confunde con la negra sola. Es el caso más común en 12/8. (Sólo atabaques.)
+- **Partitura — silencios por duración**: el hueco antes del primer golpe (o un compás
+  vacío) se descompone en **silencios estándar alineados al pulso** (redonda/blanca/negra/
+  corchea…) según la duración real, en vez de un único glifo genérico. Medio compás vacío =
+  **una** blanca de silencio; compás vacío = **redonda**.
+- **Partitura — multi-sistema (wrap)**: los patrones largos se **parten en varias líneas
+  apiladas** en vez de encogerse para entrar — se mantienen legibles. Cada sistema repite
+  clave + bracket + etiquetas; la cifra de compás va sólo en el primero; la doble barra final
+  cierra sólo el último. El playhead salta al sistema correcto.
+
+### Changed
+- El motor expone `setMeter` / `setMetricGuide` / `metricTick`; Ogbón sincroniza la métrica
+  con la grilla. La grilla accesible dispara el click de posición al navegar (si la guía
+  está activa), independiente del modo Práctica.
+
+### Docs
+- Exploración técnico-cultural de **"speech/tap to rhythm"** (entrada de ritmo por voz/tap)
+  para futuras versiones: [`docs/SPEECH-TO-RHYTHM.md`](docs/SPEECH-TO-RHYTHM.md).
+
+---
+
 ## [2.10.0] — 2026-06-28 · "Accesible de verdad"
 
 Sexta iteración: **accesibilidad nivel 2** (una grilla accesible real para teclado y lector
@@ -200,6 +237,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.11.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.11.0
 [2.10.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.10.0
 [2.9.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.1
 [2.9.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.0

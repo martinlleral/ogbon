@@ -13,7 +13,7 @@ const SHORTCUTS = [
   ['Inicio / Fin', 'Primer / último tiempo']
 ]
 
-export default function KeyboardHelp({ practiceMode, onTogglePractice }) {
+export default function KeyboardHelp({ practiceMode, onTogglePractice, metricGuide, onToggleMetricGuide }) {
   return (
     <CollapsiblePanel title="⌨ Tocar con el teclado">
       <div className="flex flex-col gap-3">
@@ -25,6 +25,15 @@ export default function KeyboardHelp({ practiceMode, onTogglePractice }) {
             className="accent-[var(--gold)] w-4 h-4"
           />
           <span>🔊 Sonar al navegar <span className="opacity-60">(modo Práctica)</span></span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={metricGuide}
+            onChange={onToggleMetricGuide}
+            className="accent-[var(--gold)] w-4 h-4"
+          />
+          <span>🧭 Guía métrica <span className="opacity-60">(marca pulsos y compases; claqueta al reproducir)</span></span>
         </label>
         <table className="w-full text-left">
           <tbody>

@@ -55,9 +55,16 @@ en voz alta, p. ej.:
 
 > **"Rum · tiempo 3 de 16 · abierto"**
 
-Es la misma información que el cursor da a la vista, en palabras. El `<canvas>` se marca
-`role="application"` para que el lector ceda las flechas a nuestra navegación en vez de
-usarlas para su propio cursor.
+Es la misma información que el cursor da a la vista, en palabras.
+
+> **Actualización (v2.10).** Esta primera capa usaba `role="application"` sobre el `<canvas>`
+> (soporte irregular en lectores de pantalla). Se reemplazó por una **grilla accesible real**
+> (`AccessibleGrid`, `role="grid"` con una celda/botón por golpe, *roving tabindex*,
+> `aria-label` por celda y `aria-live`). El círculo pasó a `aria-hidden` (sólo visual, con un
+> **cursor dorado** que espeja la celda enfocada). La lógica de golpes vive en
+> `audio/steps.js` (una sola fuente). Es el "DOM accesible paralelo" que este doc dejaba
+> pendiente: ahora se puede explorar **todo** el patrón con los comandos del lector, no sólo
+> lo que se anuncia.
 
 ### 4. Modo Práctica: escuchar dónde estás
 
@@ -66,36 +73,56 @@ defecto), navegar **reproduce el golpe** de la celda donde caés. Así se puede 
 anillo y *oír* el ritmo paso a paso, sin depender de la vista. Es un toggle: quien edita
 rápido y no lo quiere, lo apaga.
 
-### 5. Coherencia entre modos
+### 5. Guía métrica: oír la estructura (v2.11)
+
+El modo Práctica dice *qué golpe* hay en una celda, pero no *dónde estás* en el compás. La
+**Guía métrica** (toggle aparte, apagado por defecto) sonifica la **estructura métrica** —el
+segundo "modo de audio" del patrón NYU— con un **click sintético** corto y jerárquico:
+
+| Posición | Sonido | Cuándo |
+|---|---|---|
+| **Tiempo fuerte** (primer pulso del compás) | click agudo y fuerte (≈2000 Hz) | al navegar **y** al reproducir |
+| **Pulso** | click medio (≈1320 Hz) | al navegar **y** al reproducir |
+| **Subdivisión** (entre pulsos) | click tenue (≈880 Hz) | sólo al **navegar** (sería ruido en reproducción) |
+
+Así, recorriendo un anillo con las flechas, se **siente la grilla** (dónde cae el "uno", dónde
+los pulsos) sin verla; y al reproducir funciona como **claqueta** con el downbeat acentuado.
+El click se enruta **directo al destino de audio** (no pasa por el analizador): es una guía,
+no parte de la música, así que **no contamina** la visualización honesta del Axé ni se mezcla
+con el compresor. El motor conoce la métrica vía `setMeter(subPorCompás, subPorPulso)`, que
+Ogbón sincroniza al cambiar la grilla.
+
+### 6. Coherencia entre modos
 
 Si se toca una celda con el mouse o el dedo, el cursor de teclado **se mueve ahí**. Los
 dos modos comparten un mismo cursor, no compiten.
 
-### 6. Menos movimiento si se pide
+### 7. Menos movimiento si se pide
 
 Se respeta `prefers-reduced-motion`: las animaciones de la interfaz se reducen al mínimo
 para quien configuró esa preferencia del sistema.
 
 ## Qué queda pendiente (honestidad de alcance)
 
-Esta es una **primera capa** sólida, no el final del camino:
+Lo construido cubre ya el patrón completo; lo que falta es validación humana:
 
-- **Exploración libre con lector de pantalla.** Hoy se anuncia la celda activa (modelo
-  "cursor + live region"). Un siguiente nivel es un **DOM accesible paralelo** (un
-  elemento por celda con `role="gridcell"` + `aria-pressed`) que permita explorar todo
-  el patrón con los comandos propios del lector, no sólo lo que anunciamos.
-- **Más modos de audio** del patrón NYU (p. ej. una "sonificación" que comunique la
-  estructura métrica completa).
-- **Pruebas con personas usuarias** de lectores de pantalla (VoiceOver, NVDA) y validación
+- ✅ **Exploración libre con lector de pantalla** — HECHO (v2.10): grilla accesible
+  `role="grid"` con celda por golpe (ver actualización en la sección 3).
+- ✅ **Más modos de audio (sonificación de la métrica)** — HECHO (v2.11): la Guía métrica
+  (sección 5).
+- ⏳ **Pruebas con personas usuarias** de lectores de pantalla (VoiceOver, NVDA) y validación
   del fraseo de los anuncios. Lo implementado sigue el patrón, pero la prueba real es con
-  gente.
+  gente — **ya hay un músico ciego contactado** y entusiasmado para esta validación.
 
 ## Cómo probarlo
 
-1. Abrir la app y apretar `Tab` hasta el anillo dorado del círculo (o tocarlo).
-2. Mover con flechas, elegir instrumento con 1–4, poner golpes con Espacio.
+1. Abrir la app y apretar `Tab`: el foco entra en la **grilla accesible** (el cursor dorado
+   aparece en el círculo en la celda activa).
+2. Mover con flechas, elegir instrumento con 1–4, poner golpes con Espacio/Enter.
 3. Para la capa no-visual: activar VoiceOver (`Cmd+F5` en macOS) y navegar — debería
-   dictarse cada celda.
+   dictarse cada celda ("Rum, tiempo 3 de 16: abierto").
+4. Activar **Guía métrica** (panel ⌨) y volver a navegar: se oye el "uno", los pulsos y las
+   subdivisiones. Reproducir con la guía activa = claqueta con downbeat acentuado.
 
 ---
 

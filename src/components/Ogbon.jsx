@@ -44,6 +44,7 @@ export default function Ogbon() {
   const [showGlow, setShowGlow] = useState(true)
   const [vizMode, setVizMode] = useState('bloom')
   const [practiceMode, setPracticeMode] = useState(true)
+  const [metricGuide, setMetricGuide] = useState(false) // claqueta + clicks de posición métrica
   const [kbCursor, setKbCursor] = useState(null) // celda activa del teclado (la dibuja el círculo)
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
@@ -93,6 +94,16 @@ export default function Ogbon() {
   useEffect(() => {
     engineRef.current?.setBPM(bpm)
   }, [bpm])
+
+  // Sync métrica a la guía métrica del motor (subdivisiones por compás / por pulso)
+  useEffect(() => {
+    engineRef.current?.setMeter(gridType, gridType === 12 ? 3 : 4)
+  }, [gridType])
+
+  // Sync toggle de Guía métrica
+  useEffect(() => {
+    engineRef.current?.setMetricGuide(metricGuide)
+  }, [metricGuide])
 
   // Load presets on mount
   useEffect(() => {
@@ -339,6 +350,7 @@ export default function Ogbon() {
         onStepToggle={handleStepToggle}
         onCursor={setKbCursor}
         practiceMode={practiceMode}
+        metricGuide={metricGuide}
       />
 
       {/* Mezcla (ecualizador) — colapsable, para menos ruido */}
@@ -394,7 +406,12 @@ export default function Ogbon() {
       </CollapsiblePanel>
 
       {/* Ayuda de teclado + modo Práctica (accesibilidad) */}
-      <KeyboardHelp practiceMode={practiceMode} onTogglePractice={() => setPracticeMode(v => !v)} />
+      <KeyboardHelp
+        practiceMode={practiceMode}
+        onTogglePractice={() => setPracticeMode(v => !v)}
+        metricGuide={metricGuide}
+        onToggleMetricGuide={() => setMetricGuide(v => !v)}
+      />
 
       {/* Axé — visualización HONESTA del audio (colapsable, para menos ruido) */}
       <CollapsiblePanel title="🌀 Axé — Visualización">

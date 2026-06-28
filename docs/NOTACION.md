@@ -55,8 +55,8 @@ Un único *source of truth*, dos vistas. (Es el patrón de Groove Pizza, NYU Mus
     semántica de duración limpia. La **coherencia con el círculo** se sostiene por el
     **color** de cada instrumento (no hace falta el mismo glifo), y el ○ rima con el anillo
     hueco del círculo.
-  - **Leyenda** siempre visible (`× Gã · ○ abierto · + cerrado`): la notación de tambor de
-    mano no tiene un estándar único, así que la leyenda es obligatoria.
+  - **Leyenda** siempre visible (`× Gã · ○ abierto · + cerrado · ⋅ puntillo`): la notación
+    de tambor de mano no tiene un estándar único, así que la leyenda es obligatoria.
 - **Duración = intervalo hasta el próximo ataque** (acotado al compás). Esto es lo que
   hace que se lea bien: un golpe cada 2 semicorcheas se nota como **corchea**, no como
   semicorchea suelta. Sin esto, un patrón de corcheas se dibujaba (mal) como semicorcheas
@@ -65,13 +65,35 @@ Un único *source of truth*, dos vistas. (Es el patrón de Groove Pizza, NYU Mus
   en 4/4 (con **barra secundaria** y *stub* para una semicorchea suelta). Nunca se barra
   cruzando el pulso ni la barra de compás. Plicas **largas** hacia arriba (las plicas
   cortas son el delator #1 del software malo).
-- **Silencios**: uno por **pulso vacío** o por silencio inicial del compás (no uno por
-  cada celda muda — saturaría). Una **grilla de pulso tenue** marca las posiciones.
 - **Cifra de compás** (12/8 ó 4/4) apilada y centrada; **barras de compás** entre compases;
   **barra final** gruesa.
 - **Glifos como paths SVG**, no fuentes musicales (su soporte en móvil es irregular).
 
-## Decisión 3 — Playhead sin re-render
+## Decisión 3 — Refinamientos de grabado (v2.11, "sin ser ruido")
+
+El pedido fue afinar la partitura **cuidando que no agregue ruido visual**. Tres mejoras
+de legibilidad, cada una atada a una regla de grabado real:
+
+- **Puntillos.** Una nota que dura **1,5× un valor binario** (p. ej. un golpe sostenido todo
+  un pulso en 12/8 = **negra con puntillo** = 3 corcheas) lleva un **puntillo** a la derecha
+  de la cabeza. Antes esa nota se dibujaba como negra sola y se confundía con una de 2
+  corcheas. Es el caso *más común* en 12/8 (el pulso entero), así que el puntillo corrige la
+  lectura del ritmo base. Sólo en **atabaques**: el Gã es un idiófono que no sostiene, así
+  que puntillarlo sería ruido.
+- **Silencios por duración (consolidados).** El hueco antes del primer golpe —o un compás
+  entero vacío— se **descompone en silencios estándar alineados al pulso** (redonda / blanca /
+  negra / corchea / semicorchea, con puntillo donde corresponde), eligiendo el glifo según la
+  duración real en vez de un único silencio genérico. Medio compás vacío = **una** blanca de
+  silencio, no dos negras; un compás vacío = una **redonda**. El resto del compás lo "rellenan"
+  las duraciones de las notas (inter-onset), así que no hace falta dibujar silencios interiores.
+- **Multi-sistema (wrap).** Si el patrón es largo (varios compases), la partitura **se parte
+  en varias líneas (sistemas) apiladas** en vez de encoger todo para que entre. Cada sistema
+  repite **clave + bracket + etiquetas**; la **cifra de compás va sólo en el primero**
+  (convención); la **doble barra final** sólo cierra el último. Cuántos compases entran por
+  sistema se calcula para no achicar las notas (≈680 px de ancho objetivo). El playhead salta
+  al sistema correcto y no se "corta" entre líneas.
+
+## Decisión 4 — Playhead sin re-render
 
 El playhead (línea dorada) y el resaltado de la **columna activa** se animan en un loop de
 `requestAnimationFrame` que lee el engine por `ref` y escribe atributos del DOM
@@ -79,19 +101,23 @@ directamente — **fuera del ciclo de render de React**. La partitura (cabezas, 
 se re-renderiza al **editar**. Es el mismo patrón del needle del círculo. Meter el playhead
 en estado de React serían 60 re-renders/segundo: el error a evitar.
 
-## Simplificaciones conscientes (v1) y trabajo futuro
+## Simplificaciones conscientes y trabajo futuro
 
-Honestidad sobre lo que **no** es perfecto todavía (y por qué está bien para un v1):
+Honestidad sobre lo que **no** es perfecto todavía (y por qué está bien):
 
-- **Sin puntillos**: una duración de 3 pasos (corchea con puntillo) se aproxima como
-  corchea. Se apoya en la grilla para desambiguar.
-- **Glifo de silencio** estilizado (no escala por duración): señala "silencio acá".
-- **Patrones largos** (varios compases) **escalan para caber** en vez de envolverse en
-  varios sistemas (*multi-system wrapping*): refinamiento futuro.
+- **Sin cabezas huecas (blanca/redonda).** Los atabaques usan siempre cabeza rellena + marca
+  de articulación; una duración ≥ 2 pulsos no cambia la cabeza a hueca (sería raro en estos
+  patrones, densos por naturaleza). Los **puntillos** ya cubren el caso frecuente. La
+  duración de notas muy largas se infiere de plica/barra/puntillo y de la grilla.
+- **Sin ligaduras (ties).** Una duración que no es un valor estándar ni con puntillo (p. ej.
+  5 semicorcheas) se aproxima al valor representable más cercano en vez de partirse y ligarse.
+  Ligar agregaría complejidad visual ("ruido") por un caso poco común.
+- **Puntillo sólo en atabaques** (el Gã no sostiene). Coherente, pero un Gã sostenido se ve
+  como negra sin puntillo: aceptable para un idiófono.
 - **Accesibilidad**: la partitura es una superficie **visual y de puntero** (`aria-hidden`);
-  el **círculo** sigue siendo la superficie accesible por teclado y lector de pantalla
-  (navegación completa + región ARIA-live). La edición por teclado de la partitura es
-  trabajo de *accesibilidad nivel 2* (ya en el backlog).
+  la superficie accesible por teclado y lector de pantalla es la **grilla accesible**
+  (`AccessibleGrid`, `role="grid"`), no la partitura ni el círculo. Editar la partitura con
+  teclado no es necesario: edita el **mismo** `steps` desde la grilla accesible.
 
 ## Ángulo de portafolio
 

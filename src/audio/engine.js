@@ -66,6 +66,45 @@ export function createAudioEngine(instruments) {
   function getBPM() { return bpm }
   function getLoopDuration() { return (60 / getBPM()) * (grid / 4) }
 
+  // --- Guía métrica (sonificación de la estructura) ---
+  // El motor conoce la métrica para marcar pulsos y compases por audio:
+  //  subPerMeasure = subdivisiones por compás (gridType: 12 ó 16),
+  //  subPerBeat    = subdivisiones por pulso (unit: 3 en 12/8, 4 en 4/4).
+  // Sirve a la accesibilidad (un músico ciego "siente" el esqueleto métrico) y a todos
+  // (claqueta opcional). Es una pista de referencia, NO parte de la música: por eso su
+  // click se enruta DIRECTO al destino (no pasa por el analyser), así no contamina la
+  // visualización honesta del audio ni se mezcla con el compresor.
+  let subPerMeasure = 12
+  let subPerBeat = 3
+  let metricGuide = false
+
+  function metricKindOf(stepAbs) {
+    const inMeasure = ((stepAbs % subPerMeasure) + subPerMeasure) % subPerMeasure
+    if (inMeasure === 0) return 'downbeat'        // primer pulso del compás (tiempo fuerte)
+    if (inMeasure % subPerBeat === 0) return 'beat' // pulso
+    return 'sub'                                    // subdivisión (entre pulsos)
+  }
+
+  // Click sintético corto (sin samples), agudo y distinto por jerarquía métrica.
+  function clickAt(time, kind) {
+    const now = time
+    const spec = kind === 'downbeat' ? { f: 2000, g: 0.5, d: 0.045 }
+      : kind === 'beat' ? { f: 1320, g: 0.34, d: 0.035 }
+        : { f: 880, g: 0.13, d: 0.025 }            // 'sub' — tenue (sólo al navegar)
+    const osc = ctx.createOscillator()
+    const g = ctx.createGain()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(spec.f, now)
+    g.gain.setValueAtTime(0.0001, now)
+    g.gain.exponentialRampToValueAtTime(spec.g, now + 0.001)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + spec.d)
+    osc.connect(g)
+    g.connect(ctx.destination)                      // bypassa el analyser (guía, no música)
+    osc.start(now)
+    osc.stop(now + spec.d + 0.02)
+    osc.onended = () => { safeDisconnect(osc); safeDisconnect(g) }
+  }
+
   // Scheduling — patrón look-ahead de Chris Wilson (web.dev "A Tale of Two Clocks").
   // El timer JS dispara cada `lookahead` ms y agenda notas hasta `scheduleAheadTime` s
   // al futuro contra ctx.currentTime (reloj de hardware), desacoplando el jitter del
@@ -258,6 +297,13 @@ export function createAudioEngine(instruments) {
     const relativeTime = (time - startTime) % loopDuration
     const stepIndex = Math.floor((relativeTime / loopDuration) * grid)
 
+    // Claqueta de estructura: marca el downbeat (compás) y los pulsos. La subdivisión NO
+    // suena en reproducción (sería ruido); sólo se oye al navegar con el teclado.
+    if (metricGuide) {
+      const kind = metricKindOf(stepIndex)
+      if (kind !== 'sub') clickAt(time, kind)
+    }
+
     instruments.forEach((inst, i) => {
       const s = steps[i][stepIndex]
       if (s === 1) playSound(i, inst.type, false, time)
@@ -331,6 +377,22 @@ export function createAudioEngine(instruments) {
     setBPM(val) { bpm = val },
 
     setSteps(newSteps) { steps = newSteps },
+
+    // Métrica para la sonificación: subPerMeasure = subdivisiones por compás (gridType),
+    // subPerBeat = subdivisiones por pulso (unit). Ogbón la sincroniza al cambiar la grilla.
+    setMeter(perMeasure, perBeat) {
+      subPerMeasure = perMeasure
+      subPerBeat = perBeat
+    },
+    setMetricGuide(on) { metricGuide = !!on },
+    isMetricGuide() { return metricGuide },
+
+    // Click de posición métrica al navegar con el teclado (incluye la subdivisión, tenue,
+    // para orientarse sin ver). Independiente del modo Práctica: lo gobierna la Guía métrica.
+    metricTick(stepAbs) {
+      if (ctx.state === 'suspended') ctx.resume()
+      clickAt(ctx.currentTime, metricKindOf(stepAbs))
+    },
 
     setGain(idx, value) { instruments[idx].gain = value },
 

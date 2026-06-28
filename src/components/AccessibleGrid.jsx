@@ -19,7 +19,7 @@ import { nextStepValue, stateLabel, readCell } from '../audio/steps'
  * no por frame, así que memoizar no aporta — y leer `engine.current` en un useCallback
  * choca con la regla del React Compiler.)
  */
-export default function AccessibleGrid({ instruments, steps, grid, engine, onStepToggle, onCursor, practiceMode }) {
+export default function AccessibleGrid({ instruments, steps, grid, engine, onStepToggle, onCursor, practiceMode, metricGuide }) {
   const [cursor, setCursor] = useState({ i: 0, s: 0 })
   const [announce, setAnnounce] = useState('')
   const btnRefs = useRef(new Map())
@@ -33,6 +33,8 @@ export default function AccessibleGrid({ instruments, steps, grid, engine, onSte
     onCursor?.({ i, s })
     btnRefs.current.get(`${i}-${s}`)?.focus()
     if (preview && practiceMode) engine?.current?.previewHit(i, readCell(steps, i, s))
+    // Guía métrica: click de posición (compás/pulso/subdivisión) para ubicarse sin ver.
+    if (preview && metricGuide) engine?.current?.metricTick(s)
   }
 
   const toggle = (i, s) => {
