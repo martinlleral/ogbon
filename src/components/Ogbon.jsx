@@ -323,23 +323,25 @@ export default function Ogbon() {
         practiceMode={practiceMode}
       />
 
-      {/* Mixer (ecualizador) — pegado al círculo, control sonoro primario */}
-      <div className="w-full max-w-2xl bg-[#1e1e1e] p-4 rounded-xl flex justify-center gap-8 mt-3 mb-3 shadow-lg border border-[#333] max-sm:gap-5">
-        {INSTRUMENTS.map((inst, i) => (
-          <div key={inst.name} className="flex flex-col items-center gap-3">
-            <label className="text-[11px] uppercase tracking-widest font-bold" style={{ color: inst.color }}>{inst.name}</label>
-            <input
-              type="range"
-              className="mixer-slider"
-              min="0"
-              max="1.5"
-              step="0.01"
-              value={gains[i]}
-              onChange={e => handleGainChange(i, parseFloat(e.target.value))}
-            />
-          </div>
-        ))}
-      </div>
+      {/* Mezcla (ecualizador) — colapsable, para menos ruido */}
+      <CollapsiblePanel title="🎚 Mezcla">
+        <div className="flex justify-center gap-8 max-sm:gap-5 py-1">
+          {INSTRUMENTS.map((inst, i) => (
+            <div key={inst.name} className="flex flex-col items-center gap-3">
+              <label className="text-[11px] uppercase tracking-widest font-bold" style={{ color: inst.color }}>{inst.name}</label>
+              <input
+                type="range"
+                className="mixer-slider"
+                min="0"
+                max="1.5"
+                step="0.01"
+                value={gains[i]}
+                onChange={e => handleGainChange(i, parseFloat(e.target.value))}
+              />
+            </div>
+          ))}
+        </div>
+      </CollapsiblePanel>
 
       {/* Partitura — tercera lectura del mismo ritmo, sincronizada con el círculo */}
       <CollapsiblePanel title="🎼 Partitura" defaultOpen>

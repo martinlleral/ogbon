@@ -1,5 +1,42 @@
 import { useRef, useEffect } from 'react'
 
+// Decima la forma de onda a N puntos y la suaviza (3-tap). Decimar + curvas evita los
+// quiebres duros de dibujar 2048 segmentos rectos; queda una curva más orgánica.
+// `wrap` = true para la corona radial (lazo cerrado), false para el osciloscopio.
+function smoothWave(dataArray, bufferLength, N, wrap) {
+  const raw = new Array(N)
+  for (let i = 0; i < N; i++) {
+    const idx = wrap ? Math.floor((i / N) * bufferLength) : Math.floor((i / (N - 1)) * (bufferLength - 1))
+    raw[i] = (dataArray[idx] - 128) / 128
+  }
+  const out = new Array(N)
+  for (let i = 0; i < N; i++) {
+    const a = wrap ? raw[(i - 1 + N) % N] : raw[Math.max(0, i - 1)]
+    const c = wrap ? raw[(i + 1) % N] : raw[Math.min(N - 1, i + 1)]
+    out[i] = (a + 2 * raw[i] + c) / 4
+  }
+  return out
+}
+
+// Curva suave que pasa por los puntos medios (redondea cada esquina). Cerrada o abierta.
+function smoothPath(ctx, pts, closed) {
+  const n = pts.length
+  if (closed) {
+    ctx.moveTo((pts[n - 1][0] + pts[0][0]) / 2, (pts[n - 1][1] + pts[0][1]) / 2)
+    for (let i = 0; i < n; i++) {
+      const cur = pts[i], nxt = pts[(i + 1) % n]
+      ctx.quadraticCurveTo(cur[0], cur[1], (cur[0] + nxt[0]) / 2, (cur[1] + nxt[1]) / 2)
+    }
+  } else {
+    ctx.moveTo(pts[0][0], pts[0][1])
+    for (let i = 0; i < n - 1; i++) {
+      const cur = pts[i], nxt = pts[i + 1]
+      ctx.quadraticCurveTo(cur[0], cur[1], (cur[0] + nxt[0]) / 2, (cur[1] + nxt[1]) / 2)
+    }
+    ctx.lineTo(pts[n - 1][0], pts[n - 1][1])
+  }
+}
+
 /**
  * WaveCanvas — Visualización de audio HONESTA y de marca para Ogbón.
  *
@@ -100,26 +137,25 @@ export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
       ctx.fillStyle = aura
       ctx.fillRect(0, 0, wW, wH)
 
-      // 3) Corona radial = forma de onda real del master mapeada a radio
-      const N = bufferLength
-      const ringAmp = baseR * 0.55
-      ctx.beginPath()
-      for (let i = 0; i <= N; i++) {
-        const idx = i % N
-        const v = (dataArray[idx] / 128) - 1            // ≈ -1..1
+      // 3) Corona radial = forma de onda real, SUAVIZADA (decimada + curvas) → más orgánica
+      const N = 100
+      const ringAmp = baseR * 0.42
+      const wave = smoothWave(dataArray, bufferLength, N, true)
+      const pts = new Array(N)
+      for (let i = 0; i < N; i++) {
         const ang = (i / N) * Math.PI * 2 - Math.PI / 2
-        const r = baseR + v * ringAmp
-        const x = cx + Math.cos(ang) * r
-        const y = cy + Math.sin(ang) * r
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
+        const r = baseR + wave[i] * ringAmp
+        pts[i] = [cx + Math.cos(ang) * r, cy + Math.sin(ang) * r]
       }
+      ctx.beginPath()
+      smoothPath(ctx, pts, true)
       ctx.closePath()
       const grad = ctx.createLinearGradient(cx - baseR, cy - baseR, cx + baseR, cy + baseR)
       grad.addColorStop(0, '#ffd700')
       grad.addColorStop(1, '#ff8c00')
       ctx.strokeStyle = grad
-      ctx.lineWidth = 2
+      ctx.lineWidth = 2.4
+      ctx.lineJoin = 'round'
       ctx.globalAlpha = 0.92
       ctx.shadowColor = 'rgba(255,200,0,0.55)'
       ctx.shadowBlur = isPlaying ? 16 : 6
@@ -159,22 +195,21 @@ export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
       ctx.strokeStyle = 'rgba(255,255,255,0.08)'
       ctx.moveTo(20, cyc); ctx.lineTo(wW - 20, cyc); ctx.stroke()
 
-      // Forma de onda real (time-domain), ventaneada con una gaussiana
+      // Forma de onda real (time-domain), SUAVIZADA y ventaneada con una gaussiana
+      const Ns = 140
+      const wave = smoothWave(dataArray, bufferLength, Ns, false)
+      const pts = new Array(Ns)
+      for (let i = 0; i < Ns; i++) {
+        const win = Math.exp(-Math.pow((i - Ns / 2) / (Ns / 3), 2))
+        pts[i] = [20 + (i / (Ns - 1)) * (wW - 40), cyc + wave[i] * (wH / 2.4) * win]
+      }
       ctx.beginPath()
       ctx.strokeStyle = 'rgba(255, 215, 0, 0.85)'
-      ctx.lineWidth = 1.8
+      ctx.lineWidth = 2
+      ctx.lineJoin = 'round'
       ctx.shadowColor = 'rgba(255,200,0,0.4)'
       ctx.shadowBlur = isPlaying ? 10 : 4
-      const slice = (wW - 40) / bufferLength
-      let x = 20
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0
-        const win = Math.exp(-Math.pow((i - bufferLength / 2) / (bufferLength / 3), 2))
-        const y = cyc + (v - 1) * (wH / 2.4) * win
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-        x += slice
-      }
+      smoothPath(ctx, pts, false)
       ctx.stroke()
       ctx.shadowBlur = 0
 

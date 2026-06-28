@@ -2,6 +2,17 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.9.1] — 2026-06-28 · "Pulido"
+
+### Changed
+- **Florecimiento de Axé / Osciloscopio**: la línea —y la corona radial— ahora se dibujan
+  **suavizadas** (decimado a ~100 puntos + curvas cuadráticas) en vez de 2048 segmentos
+  rectos: menos quiebres duros, más orgánica. Amplitud de la corona un poco más contenida.
+- El **ecualizador** pasa a un panel **desplegable** ("🎚 Mezcla"), como el resto, para
+  menos ruido visual.
+
+---
+
 ## [2.9.0] — 2026-06-28 · "Tres lecturas"
 
 Quinta iteración: una **partitura** convencional como tercera lectura del ritmo —
@@ -161,6 +172,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.9.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.1
 [2.9.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.0
 [2.8.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.8.0
 [2.7.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.7.0
