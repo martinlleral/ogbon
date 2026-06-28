@@ -15,6 +15,7 @@ import Toast from './Toast'
 import Onboarding from './Onboarding'
 import KeyboardHelp from './KeyboardHelp'
 import CollapsiblePanel from './CollapsiblePanel'
+import { setBusy, onUpdateReady, applyUpdateNow } from '../pwa'
 
 const INSTRUMENTS = [
   { name: 'Gã', color: '#ffd700', radius: 200, type: 'metal', pan: 0, gain: 0.8 },
@@ -54,6 +55,7 @@ export default function Ogbon() {
   const [countingIn, setCountingIn] = useState(false) // un compás de claqueta antes de registrar
   const [recAnnounce, setRecAnnounce] = useState('')  // región aria-live propia de grabación
   const [audioState, setAudioState] = useState('running') // diagnóstico: estado real del AudioContext
+  const [updateReady, setUpdateReady] = useState(false)   // hay una versión nueva de la app esperando
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
   const [presetMeta, setPresetMeta] = useState(() => getPresetMeta('builtin_ijexa'))
@@ -126,6 +128,12 @@ export default function Ogbon() {
   useEffect(() => {
     loadAllPresets().then(setPresetList)
   }, [])
+
+  // PWA: avisar cuando hay una versión nueva de la app esperando.
+  useEffect(() => { onUpdateReady(() => setUpdateReady(true)) }, [])
+
+  // PWA: marcar "ocupado" mientras reproduce, para no recargar de sorpresa en medio de un ritmo.
+  useEffect(() => { setBusy(playing) }, [playing])
 
   const grid = gridType * measures
 
@@ -482,7 +490,17 @@ export default function Ogbon() {
   const selectClass = 'bg-[#333] text-white border border-[#555] p-2 rounded'
 
   return (
-    <div className="flex flex-col items-center w-full pb-28">
+    <div className={`flex flex-col items-center w-full pb-28 ${updateReady ? 'pt-10' : ''}`}>
+      {/* Aviso de nueva versión (PWA): solo aparece si una recarga automática no fue posible
+          por estar reproduciendo. Tocarlo recarga para tomar la versión nueva. */}
+      {updateReady && (
+        <button
+          onClick={applyUpdateNow}
+          className="fixed top-0 left-0 right-0 z-[60] bg-[var(--gold)] text-black text-sm font-semibold py-2 px-4 text-center hover:brightness-105 transition"
+        >
+          🔄 Nueva versión disponible — tocá para actualizar
+        </button>
+      )}
       <h1 className="text-[var(--gold)] mt-4 mb-1 font-light tracking-wider text-xl sm:text-2xl">OGBÓN DIÁSPORA</h1>
       <p className="text-xs opacity-60 mb-4 text-center max-w-md px-2">
         Círculos de Axé · secuenciador de ritmos de percusión de Candomblé.

@@ -10,6 +10,10 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registramos el SW a mano (src/pwa.js) para bypassar el caché de 10 min que GitHub Pages
+      // pone sobre sw.js (updateViaCache: 'none') y aplicar las actualizaciones a tiempo.
+      // (No tocamos `workbox`: así se conservan los defaults de autoUpdate skipWaiting+clientsClaim.)
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'icon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Ogbón: Círculos de Axé',

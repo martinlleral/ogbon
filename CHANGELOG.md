@@ -2,6 +2,21 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.12.3] — 2026-06-28 · "Updates al toque"
+
+### Fixed
+- **Las actualizaciones de la PWA quedaban pegadas** (no se llegaba a la versión nueva por más
+  que se recargara). Causa: GitHub Pages sirve `sw.js` con `Cache-Control: max-age=600` y el
+  navegador respeta ese caché para chequear el Service Worker, así que la versión nueva tardaba
+  hasta 10 min. Ahora registramos el SW a mano (`src/pwa.js`) con **`updateViaCache: 'none'`** (se
+  busca `sw.js` sin pasar por ese caché), se chequean updates cada minuto y al volver a la pestaña,
+  y se aplica la versión nueva apenas está: **recarga sola si la app está quieta**, o aparece un
+  botón **"🔄 actualizar"** si estás reproduciendo (para no cortar un ritmo). Con guardas
+  anti-bucle y revisión adversarial de riesgo. *Nota: para tomar ESTA versión hay que actualizar
+  una última vez a mano (DevTools → Service Workers → Unregister); de acá en adelante llega sola.*
+
+---
+
 ## [2.12.2] — 2026-06-28 · "Diagnóstico de audio"
 
 Paso 1 (de 3) para aislar y resolver dos bugs de audio reportados en la validación: (A) tras
@@ -307,6 +322,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.12.3]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.3
 [2.12.2]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.2
 [2.12.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.1
 [2.12.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.0
