@@ -353,7 +353,7 @@ export function createAudioEngine(instruments) {
     resume() { return ctx.resume() },
 
     togglePlay() {
-      if (ctx.state === 'suspended') ctx.resume()
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
       isPlaying = !isPlaying
 
       if (isPlaying) {
@@ -401,7 +401,7 @@ export function createAudioEngine(instruments) {
     // Click de posición métrica al navegar con el teclado (incluye la subdivisión, tenue,
     // para orientarse sin ver). Independiente del modo Práctica: lo gobierna la Guía métrica.
     metricTick(stepAbs) {
-      if (ctx.state === 'suspended') ctx.resume()
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
       clickAt(ctx.currentTime, metricKindOf(stepAbs))
     },
 
@@ -428,6 +428,10 @@ export function createAudioEngine(instruments) {
     getActiveNotes() { return activeNotes },
     getWaveHistory() { return waveHistory },
     isPlayingNow() { return isPlaying },
+    // Estado real del audio: 'running' suena, 'suspended' lo pausó el sistema, 'closed' está roto.
+    // Sirve para diagnosticar el "la aguja gira pero no suena" (ctx 'running' pero sin salida audible).
+    getAudioState() { return ctx.state },
+    isRunning() { return ctx.state === 'running' },
     getLoopDuration,
     updatePlaybackPos,
 
@@ -461,7 +465,7 @@ export function createAudioEngine(instruments) {
     // Reproduce el golpe de UN instrumento (modo Práctica del teclado accesible).
     // value: 0 silencio (no suena), 1 abierto, 2 cerrado.
     previewHit(instIdx, value) {
-      if (ctx.state === 'suspended') ctx.resume()
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
       if (!value) return
       const inst = instruments[instIdx]
       playSound(instIdx, inst.type, value === 2)
@@ -485,7 +489,7 @@ export function createAudioEngine(instruments) {
     destroy() {
       clearTimeout(schedulerTimeout)
       isPlaying = false
-      ctx.close()
+      try { ctx.close() } catch { /* ya cerrado */ }
     }
   }
 }

@@ -53,6 +53,7 @@ export default function Ogbon() {
   const [closedMode, setClosedMode] = useState(false) // los taps escriben cerrado (2) en vez de abierto (1)
   const [countingIn, setCountingIn] = useState(false) // un compás de claqueta antes de registrar
   const [recAnnounce, setRecAnnounce] = useState('')  // región aria-live propia de grabación
+  const [audioState, setAudioState] = useState('running') // diagnóstico: estado real del AudioContext
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
   const [presetMeta, setPresetMeta] = useState(() => getPresetMeta('builtin_ijexa'))
@@ -132,6 +133,34 @@ export default function Ogbon() {
     const nowPlaying = engineRef.current.togglePlay()
     setPlaying(nowPlaying)
   }, [])
+
+  // Red de seguridad: si el audio dejó de sonar (contexto zombi tras recargar, o atado a una
+  // salida vieja), recrea el AudioContext y el grafo con el estado ACTUAL — toma la salida
+  // vigente y limpia el zombi. Se llama desde un gesto del usuario (el botón), así que el
+  // resume() está permitido. Arranca parado: el usuario vuelve a dar play.
+  const reactivateAudio = useCallback(() => {
+    try { engineRef.current?.destroy() } catch { /* ya cerrado */ }
+    const fresh = createAudioEngine(INSTRUMENTS)
+    fresh.applyPreset({ grid, steps, bpm, gains })
+    fresh.setMeter(gridType, gridType === 12 ? 3 : 4)
+    fresh.setMetricGuide(metricGuide)
+    fresh.resume()
+    engineRef.current = fresh
+    setPlaying(false)
+    setAudioState('suspended')
+    showToast('Audio reactivado — tocá ▶ para reproducir', 'success')
+  }, [grid, steps, bpm, gains, gridType, metricGuide, showToast])
+
+  // Diagnóstico: mientras reproduce, sondea el estado real del AudioContext (running/suspended/
+  // closed). Sirve para entender el "la aguja gira pero no suena" (estado 'running' sin salida).
+  useEffect(() => {
+    if (!playing) return
+    const id = setInterval(() => {
+      const eng = engineRef.current
+      if (eng?.getAudioState) setAudioState(eng.getAudioState())
+    }, 700)
+    return () => clearInterval(id)
+  }, [playing])
 
   const handleGridTypeChange = useCallback((val) => {
     const newGridType = parseInt(val)
@@ -619,6 +648,15 @@ export default function Ogbon() {
         className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e1e1e]/95 backdrop-blur border-t border-[#444] shadow-[0_-4px_24px_rgba(0,0,0,0.6)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
+        {/* Diagnóstico + recuperación del audio (Síntoma A): muestra el estado real y permite
+            reactivar si dejó de sonar (la aguja gira pero no sale audio). */}
+        {playing && (
+          <div className="max-w-2xl mx-auto px-4 pt-1.5 flex items-center justify-center gap-2 text-[11px] opacity-70">
+            <span>audio: <span className={audioState === 'running' ? 'text-[#7ddc7d]' : 'text-[#e74c3c]'}>{audioState}</span></span>
+            <span className="opacity-40">·</span>
+            <button onClick={reactivateAudio} className="underline hover:text-[var(--gold)] transition-colors">¿no suena? reactivar 🔁</button>
+          </div>
+        )}
         {recordMode && (
           <RecordBar
             instruments={INSTRUMENTS}

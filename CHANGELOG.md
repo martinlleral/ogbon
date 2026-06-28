@@ -2,6 +2,22 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.12.2] — 2026-06-28 · "Diagnóstico de audio"
+
+Paso 1 (de 3) para aislar y resolver dos bugs de audio reportados en la validación: (A) tras
+recargar deja de sonar aunque la aguja gire, y (B) desfase al re-comenzar. Este release es
+**diagnóstico + red de seguridad** del Síntoma A, antes de aplicar el fix definitivo.
+
+### Added
+- Mientras reproduce, el transporte muestra el **estado real del audio** (`running` /
+  `suspended` / `closed`) y un botón **"¿no suena? reactivar 🔁"** que **recrea el AudioContext**
+  con el estado actual (toma la salida vigente y limpia un contexto "zombi"). Recupera el caso
+  "la aguja gira pero no sale audio" sin recargar.
+- Motor: `getAudioState()` / `isRunning()`; `ctx.resume()` con manejo de error y `destroy()`
+  defensivo.
+
+---
+
 ## [2.12.1] — 2026-06-28 · "Aguja sincronizada"
 
 ### Fixed
@@ -291,6 +307,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.12.2]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.2
 [2.12.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.1
 [2.12.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.0
 [2.11.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.11.0
