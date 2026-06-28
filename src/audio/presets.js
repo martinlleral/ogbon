@@ -19,7 +19,7 @@ export const BUILTIN_PRESETS = [
   {
     key: 'builtin_ijexa',
     name: 'Ijexá',
-    label: '🥁 Ijexá — Oxum',
+    label: '🪘 Ijexá — Oxum',
     gridType: 16,
     measures: 1,
     bpm: 100,
@@ -40,7 +40,7 @@ export const BUILTIN_PRESETS = [
   {
     key: 'builtin_aguere',
     name: 'Aguerê',
-    label: '🥁 Aguerê — Oxóssi',
+    label: '🪘 Aguerê — Oxóssi',
     gridType: 12,
     measures: 1,
     bpm: 110,
@@ -61,7 +61,7 @@ export const BUILTIN_PRESETS = [
   {
     key: 'builtin_vassi',
     name: 'Vassi',
-    label: '🥁 Vassi — linha-guia',
+    label: '🪘 Vassi — linha-guia',
     gridType: 12,
     measures: 1,
     bpm: 140,

@@ -47,3 +47,28 @@ canvas {
     height: 80px;
   }
 }
+
+/* Animaciones de entrada para modales, toasts y onboarding (Iteración 3). */
+@keyframes ogbon-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ogbon-pop-in {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ogbon-toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Respetar a quien pide menos movimiento (accesibilidad). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

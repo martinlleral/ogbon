@@ -1,9 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createAudioEngine } from '../audio/engine'
 import { useWakeLock } from '../hooks/useWakeLock'
+import { useModal } from '../hooks/useModal'
+import { useToast } from '../hooks/useToast'
 import { loadAllPresets, getPresetData, getPresetMeta, getDefaultPreset, deriveGridShape, saveLocalPreset, deleteLocalPreset, exportPreset, importPreset } from '../audio/presets'
 import CircleCanvas from './CircleCanvas'
 import WaveCanvas from './WaveCanvas'
+import Modal from './Modal'
+import Toast from './Toast'
+import Onboarding from './Onboarding'
 
 const INSTRUMENTS = [
   { name: 'Gã', color: '#ffd700', radius: 200, type: 'metal', pan: 0, gain: 0.8 },
@@ -40,6 +45,22 @@ export default function Ogbon() {
 
   const engineRef = useRef(null)
   const fileInputRef = useRef(null)
+
+  // Diálogos propios (en vez de prompt/confirm/alert nativos) y avisos no-bloqueantes
+  const { modalState, closeModal, promptModal, confirmModal } = useModal()
+  const { toast, showToast } = useToast()
+
+  // Hint de primer uso: se muestra hasta que el usuario toca un círculo o lo cierra
+  const [showHint, setShowHint] = useState(() => {
+    try { return !localStorage.getItem('ogbon_onboarded') } catch { return false }
+  })
+  const hintDoneRef = useRef(false)
+  const dismissHint = useCallback(() => {
+    if (hintDoneRef.current) return
+    hintDoneRef.current = true
+    setShowHint(false)
+    try { localStorage.setItem('ogbon_onboarded', '1') } catch { /* modo privado: no persiste */ }
+  }, [])
 
   // Mantener la pantalla encendida mientras suena un ritmo (no-op si no hay soporte)
   useWakeLock(playing)
@@ -97,13 +118,14 @@ export default function Ogbon() {
   }, [gridType])
 
   const handleStepToggle = useCallback((instIdx, stepIdx) => {
+    dismissHint() // primer toque: cerrar la ayuda de onboarding (idempotente)
     setSteps(prev => {
       const next = prev.map(row => [...row])
       next[instIdx][stepIdx] = (next[instIdx][stepIdx] + 1) % 3
       if (instIdx === 0 && next[instIdx][stepIdx] === 2) next[instIdx][stepIdx] = 0
       return next
     })
-  }, [])
+  }, [dismissHint])
 
   const handleGainChange = useCallback((idx, value) => {
     engineRef.current?.setGain(idx, value)
@@ -135,49 +157,73 @@ export default function Ogbon() {
     }
   }, [measuresOptions])
 
-  const handleSave = useCallback(() => {
-    const name = prompt('Nombre del ritmo:')
+  const handleSave = useCallback(async () => {
+    const name = await promptModal({
+      title: 'Guardar ritmo',
+      placeholder: 'Nombre del ritmo',
+      confirmLabel: 'Guardar'
+    })
     if (!name) return
     saveLocalPreset(name, { gridType, measures, grid, steps, bpm, gains })
     loadAllPresets().then(setPresetList)
-  }, [gridType, measures, grid, steps, bpm, gains])
+    showToast(`Guardado: ${name}`, 'success')
+  }, [gridType, measures, grid, steps, bpm, gains, promptModal, showToast])
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (selectedPreset === 'Cargar...') return
     if (selectedPreset.startsWith('builtin_')) {
-      alert('Los toques incluidos (🥁) no se pueden borrar.')
+      showToast('Los toques incluidos (🪘) no se pueden borrar', 'info')
       return
     }
-    if (confirm(`¿Eliminar el preset "${selectedPreset.replace('ogbon_', '')}"?`)) {
-      deleteLocalPreset(selectedPreset)
-      loadAllPresets().then(setPresetList)
-      setSelectedPreset('Cargar...')
-      setPresetMeta(null)
-    }
-  }, [selectedPreset])
+    const name = selectedPreset.replace('ogbon_', '')
+    const ok = await confirmModal({
+      title: 'Eliminar ritmo',
+      message: `¿Querés eliminar "${name}"? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      danger: true
+    })
+    if (!ok) return
+    deleteLocalPreset(selectedPreset)
+    loadAllPresets().then(setPresetList)
+    setSelectedPreset('Cargar...')
+    setPresetMeta(null)
+    showToast(`Eliminado: ${name}`, 'success')
+  }, [selectedPreset, confirmModal, showToast])
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     let exportName = 'ritmo_nuevo'
     if (selectedPreset !== 'Cargar...') {
       exportName = selectedPreset.replace('builtin_', '').replace('ogbon_', '')
     } else {
-      const name = prompt('Nombre para el archivo:', 'Mi Ritmo')
+      const name = await promptModal({
+        title: 'Exportar ritmo',
+        message: 'Nombre del archivo .ogbon',
+        defaultValue: 'Mi Ritmo',
+        confirmLabel: 'Exportar'
+      })
       if (!name) return
       exportName = name
     }
     exportPreset(exportName, { name: exportName, gridType, measures, grid, steps, bpm, gains })
-  }, [selectedPreset, gridType, measures, grid, steps, bpm, gains])
+    showToast('Archivo descargado', 'success')
+  }, [selectedPreset, gridType, measures, grid, steps, bpm, gains, promptModal, showToast])
 
   const handleImport = useCallback(async (e) => {
     const file = e.target.files[0]
     if (!file) return
-    const data = await importPreset(file)
-    if (!data) return
+    const fail = () => { showToast('Archivo .ogbon inválido o incompatible', 'error'); e.target.value = '' }
+
+    let data
+    try {
+      data = await importPreset(file) // puede rechazar si el JSON está corrupto
+    } catch {
+      fail()
+      return
+    }
     // Validar archivos externos: 4 instrumentos y grilla representable (múltiplo de 12 o 16)
-    const total = data.grid || (Array.isArray(data.steps) && data.steps[0] ? data.steps[0].length : 0)
-    if (!Array.isArray(data.steps) || data.steps.length !== 4 || (total % 12 !== 0 && total % 16 !== 0)) {
-      alert('Archivo .ogbon inválido o incompatible.')
-      e.target.value = ''
+    const total = (data && data.grid) || (data && Array.isArray(data.steps) && data.steps[0] ? data.steps[0].length : 0)
+    if (!data || !Array.isArray(data.steps) || data.steps.length !== 4 || (total % 12 !== 0 && total % 16 !== 0)) {
+      fail()
       return
     }
     const result = engineRef.current.applyPreset(data)
@@ -195,7 +241,8 @@ export default function Ogbon() {
       setMeasuresOptions(prev => [...prev, { value: m, label: `${m} Compases` }])
     }
     e.target.value = ''
-  }, [measuresOptions])
+    showToast('Ritmo importado', 'success')
+  }, [measuresOptions, showToast])
 
   const btnClass = 'bg-[#333] text-white border border-[#555] px-4 py-2 rounded cursor-pointer transition-all duration-300 hover:bg-[var(--gold)] hover:text-black'
   const activeBtnClass = 'bg-[#e74c3c] text-white border border-[#555] px-4 py-2 rounded cursor-pointer transition-all duration-300 hover:bg-[var(--gold)] hover:text-black'
@@ -247,6 +294,9 @@ export default function Ogbon() {
           <p className="opacity-50 text-xs mt-1 italic">Aproximación didáctica, pendiente de validación comunitaria.</p>
         </div>
       )}
+
+      {/* Hint de primer uso (se va al tocar un círculo o al cerrarlo) */}
+      {showHint && <Onboarding onDismiss={dismissHint} />}
 
       {/* Círculo — protagonista */}
       <CircleCanvas
@@ -332,6 +382,10 @@ export default function Ogbon() {
           <span className="text-sm tabular-nums w-16 text-right shrink-0">{bpm} BPM</span>
         </div>
       </div>
+
+      {/* Diálogos propios y avisos no-bloqueantes (Iteración 3 — Comodidad) */}
+      <Modal state={modalState} onClose={closeModal} />
+      <Toast toast={toast} />
     </div>
   )
 }

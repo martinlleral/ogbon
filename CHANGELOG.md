@@ -2,6 +2,28 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.7.0] — 2026-06-27 · "Comodidad"
+
+Tercera iteración: se pulen los detalles de uso para que la app se sienta cuidada.
+
+### Added
+- **Diálogos propios** en la estética dorada-oscura, en vez de los `prompt`/`confirm`/
+  `alert` nativos del navegador (que rompían la inmersión y se ven distinto en cada SO).
+  Guardar y Exportar abren un **modal con campo de texto**; Eliminar pide **confirmación**
+  con botón rojo de "peligro".
+- **Avisos no-bloqueantes (toasts)**: feedback de "Guardado ✓", "Eliminado", "Ritmo
+  importado" y errores, que aparecen abajo y se van solos sin frenar la interacción.
+- **Hint de primer uso**: la primera vez aparece "tocá un círculo para armar tu ritmo"
+  (se recuerda en `localStorage`, no vuelve a molestar).
+- **Accesibilidad**: los modales se manejan con teclado (Escape cancela, Enter confirma,
+  foco automático) y se respeta `prefers-reduced-motion` para quien pide menos animación.
+
+### Fixed
+- Importar un `.ogbon` con JSON corrupto ahora muestra un aviso claro en vez de fallar
+  en silencio (la promesa rechazada no se manejaba).
+
+---
+
 ## [2.6.0] — 2026-06-27 · "Móvil de verdad"
 
 Segunda iteración: la app se vuelve instalable y cómoda en el celular.
@@ -73,5 +95,6 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.7.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.7.0
 [2.6.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.6.0
 [2.5.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.5.0
