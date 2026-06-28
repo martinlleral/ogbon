@@ -2,6 +2,45 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.12.0] — 2026-06-28 · "Modo Toque"
+
+Octava iteración: **tap-to-circle** — grabar un ritmo **tocando** (barra espaciadora o botón
+TAP) y que cada golpe caiga cuantizado en el anillo activo. Es la **puerta de accesibilidad**
+de Ogbón (crear un ritmo sin navegar la grilla visual; patrón QWERTYBeats / Non-Visual Beats,
+NYU) y el primer escalón hacia la entrada por voz. Diseño elegido por un panel multi-agente y
+endurecido por una revisión adversarial (14 hallazgos, 13 corregidos). Ver
+[`docs/SPEECH-TO-RHYTHM.md`](docs/SPEECH-TO-RHYTHM.md).
+
+### Added
+- **Modo Toque** (botón ● en el transporte, tecla **R** o el checkbox del panel ⌨): se entra,
+  suena un **count-in de 1 compás** con la claqueta (Guía métrica, que se fuerza ON) y después
+  cada **tap** (Espacio / botón **TAP** / touch) escribe un golpe en la casilla más cercana del
+  anillo activo. Elegís el anillo con **1–4** (o el selector), **C** alterna abierto/cerrado
+  (atabaques), **Retroceso** deshace el último golpe, **Vaciar anillo** lo limpia, **Esc**/**R**
+  sale. El tap **suena al instante** (feedback) y deja el cursor dorado en la celda.
+- **`engine.tapToStep()`**: cuantiza el tap recomputando la posición **fresca** contra el reloj
+  de audio (no el caché del RAF) — robusto aunque la pestaña vaya a segundo plano. Fórmula
+  idéntica a la del mouse y la del teclado (consistencia tap/click/flecha).
+- **`writeHit()`** (idempotente): re-tapear una celda la **reafirma**, no la borra; Gã clampeado.
+
+### Changed
+- Durante la grabación se **bloquean** los controles que cambiarían la métrica bajo los pies del
+  loop: selects de grilla/compases, **slider de BPM** y el checkbox de Guía métrica. Cargar o
+  importar un preset **sale** del Modo Toque. La Guía métrica se restaura al valor previo al salir.
+- En Modo Toque, el **Espacio** siempre tapea desde el botón TAP y la grilla, pero **activa
+  normalmente** los botones de acción enfocados (Salir, Deshacer, PLAY…); **Enter** activa
+  cualquier botón. El foco vuelve al botón ● al salir.
+
+### Accessibility
+- Flujo de grabación **100% no-visual** con anuncios aria-live (entrada, **fin del count-in**,
+  cambio de anillo, deshacer, vaciar, salir con resumen de golpes), `aria-keyshortcuts` y un
+  resumen de atajos para lector de pantalla. Ruta alterna **Enter** en TAP para lectores que
+  interceptan el Espacio (a validar con el músico ciego). *Decisión consciente:* **no** se
+  anuncia cada tap por voz (en tiempo real llega tarde y se encola) — el feedback por golpe es
+  **sonoro**. Sólo `prefers-reduced-motion`-safe (no se agregan animaciones nuevas).
+
+---
+
 ## [2.11.0] — 2026-06-28 · "Métrica y partitura fina"
 
 Séptima iteración: **sonificar la estructura métrica** (accesibilidad nivel 2, lo que
@@ -237,6 +276,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.12.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.0
 [2.11.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.11.0
 [2.10.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.10.0
 [2.9.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.1

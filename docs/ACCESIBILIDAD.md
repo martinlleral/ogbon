@@ -102,6 +102,41 @@ dos modos comparten un mismo cursor, no compiten.
 Se respeta `prefers-reduced-motion`: las animaciones de la interfaz se reducen al mínimo
 para quien configuró esa preferencia del sistema.
 
+## Grabar tocando (Modo Toque), sin ver — v2.12
+
+El editor por celdas y la sonificación dejan **leer y editar** un ritmo sin ver. El **Modo
+Toque** (tap-to-circle) agrega lo que faltaba: **crearlo tocándolo**. Es el precedente más
+fuerte del proyecto en accesibilidad — el mismo laboratorio (NYU MusEDLab) que hizo un
+secuenciador radial declaró ese círculo *"totalmente inadecuado para personas ciegas"* y
+respondió con **QWERTYBeats**: grabar tu sonido y oírlo **auto-cuantizado**. Acá replicamos la
+idea: el usuario fija tempo y métrica, entra al modo y **toca el ritmo con la barra espaciadora**;
+cada golpe cae en la casilla más cercana. *Llevar el tiempo deja de ser el obstáculo* — la
+cuantización lo absorbe.
+
+**El flujo no-visual completo** (con la Guía métrica como ancla audible):
+1. `R` entra. Se anuncia *"Modo Toque. Grabás en Rum. Entrada en un compás."* y la claqueta
+   se **fuerza** (el downbeat acentuado marca el "uno").
+2. Un compás de count-in; al terminar se anuncia *"¡Ya! Tocá el ritmo."* (el instante exacto
+   en que los taps empiezan a contar — sin verlo).
+3. Tocás `Espacio` al pulso: **cada golpe suena al instante** (`previewHit`). Cambiás de anillo
+   con `1–4` (*"Ahora grabás en Lé"*), alternás cerrado con `C`, deshacés con `Retroceso`.
+4. `Esc` sale y anuncia el resumen: *"Saliste del Modo Toque. 8 golpes en este ritmo."* El foco
+   vuelve al botón ●.
+
+**Decisiones de accesibilidad (y su porqué):**
+- **Una sola semántica del Espacio**, blindada: en Modo Toque el Espacio tapea desde el botón
+  TAP y desde la grilla (un listener global en fase de *captura* corre antes que la celda y la
+  silencia → nunca hay doble-escritura). Pero los **botones de acción** enfocados (Salir,
+  Deshacer, PLAY) se activan normalmente con Espacio, y **Enter** activa cualquier botón:
+  comportamiento predecible (WCAG) sin perder el "tocar desde donde estés".
+- **Feedback sonoro, no verboso.** *No* se anuncia cada tap por voz: en tiempo real un aria-live
+  llega tarde y se encola. El golpe **se oye** (esa es la confirmación), y al salir se resume el
+  total. Es la elección correcta para input en vivo.
+- **Ruta alterna `Enter` en TAP** para lectores (VoiceOver/NVDA) que interceptan el Espacio en
+  modo navegación — el supuesto a validar con el músico ciego ya contactado.
+- **Sin trampas de estado:** durante la grabación se bloquean tempo/métrica/Guía (cambiarlos
+  movería el pulso bajo los taps) y los anuncios re-disparan aunque el texto se repita.
+
 ## Qué queda pendiente (honestidad de alcance)
 
 Lo construido cubre ya el patrón completo; lo que falta es validación humana:
@@ -123,6 +158,9 @@ Lo construido cubre ya el patrón completo; lo que falta es validación humana:
    dictarse cada celda ("Rum, tiempo 3 de 16: abierto").
 4. Activar **Guía métrica** (panel ⌨) y volver a navegar: se oye el "uno", los pulsos y las
    subdivisiones. Reproducir con la guía activa = claqueta con downbeat acentuado.
+5. **Modo Toque**: apretar `R` (o el botón ●), esperar el count-in y tocar el ritmo con la barra
+   espaciadora; cambiar de anillo con `1–4`, deshacer con `Retroceso`, salir con `Esc`. Con
+   VoiceOver, si el Espacio no llega, usar `Enter` con el foco en el botón **TAP**.
 
 ---
 

@@ -26,3 +26,13 @@ export function readCell(steps, instIdx, step) {
   const row = steps[Math.min(instIdx, steps.length - 1)] || []
   return row[Math.min(step, row.length - 1)] ?? 0
 }
+
+// Escribe un golpe por VALOR, sin ciclar (a diferencia de nextStepValue, que alterna/borra):
+// re-tapear una celda la reafirma en vez de apagarla — clave para grabar tocando (Modo Toque)
+// sin ver. Gã (i===0) se clampa a 0/1. Devuelve un steps nuevo (inmutable).
+export function writeHit(steps, instIdx, step, value) {
+  const v = instIdx === 0 ? (value ? 1 : 0) : value
+  const next = steps.map(row => [...row])
+  next[instIdx][step] = v
+  return next
+}

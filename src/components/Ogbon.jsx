@@ -8,7 +8,8 @@ import CircleCanvas from './CircleCanvas'
 import AccessibleGrid from './AccessibleGrid'
 import NotationCanvas from './NotationCanvas'
 import WaveCanvas from './WaveCanvas'
-import { nextStepValue } from '../audio/steps'
+import RecordBar from './RecordBar'
+import { nextStepValue, writeHit } from '../audio/steps'
 import Modal from './Modal'
 import Toast from './Toast'
 import Onboarding from './Onboarding'
@@ -46,6 +47,12 @@ export default function Ogbon() {
   const [practiceMode, setPracticeMode] = useState(true)
   const [metricGuide, setMetricGuide] = useState(false) // claqueta + clicks de posición métrica
   const [kbCursor, setKbCursor] = useState(null) // celda activa del teclado (la dibuja el círculo)
+  // Modo Toque (tap-to-circle): grabar tocando, los golpes caen cuantizados en el anillo activo
+  const [recordMode, setRecordMode] = useState(false)
+  const [recInst, setRecInst] = useState(1)        // anillo destino (Rum por defecto)
+  const [closedMode, setClosedMode] = useState(false) // los taps escriben cerrado (2) en vez de abierto (1)
+  const [countingIn, setCountingIn] = useState(false) // un compás de claqueta antes de registrar
+  const [recAnnounce, setRecAnnounce] = useState('')  // región aria-live propia de grabación
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
   const [presetMeta, setPresetMeta] = useState(() => getPresetMeta('builtin_ijexa'))
@@ -53,6 +60,15 @@ export default function Ogbon() {
 
   const engineRef = useRef(null)
   const fileInputRef = useRef(null)
+  // Refs del Modo Toque (valores que cambian sin re-render o que lee el listener global)
+  const lastTapRef = useRef(0)            // dedupe de rebote (reloj de audio)
+  const undoStackRef = useRef([])         // snapshots de steps para deshacer
+  const countInTimerRef = useRef(null)    // timeout del count-in (cancelable al salir)
+  const prevMetricGuideRef = useRef(false) // valor de la Guía métrica antes de grabar (se restaura)
+  const stepsRef = useRef(steps)          // último steps para exitRecord/clearRecRing sin closures viejos
+  const recApiRef = useRef(null)          // bundle de handlers fresco para el listener global
+  const recNonceRef = useRef(0)           // alterna un sufijo invisible para que aria-live re-anuncie strings repetidos
+  const recordToggleRef = useRef(null)    // botón ● del transporte (para devolverle el foco al salir)
 
   // Diálogos propios (en vez de prompt/confirm/alert nativos) y avisos no-bloqueantes
   const { modalState, closeModal, promptModal, confirmModal } = useModal()
@@ -153,6 +169,160 @@ export default function Ogbon() {
     })
   }, [dismissHint])
 
+  // ---- Modo Toque (tap-to-circle) ----
+  // Mantener stepsRef al día para leer el último steps sin closures viejos (exit/clear).
+  useEffect(() => { stepsRef.current = steps }, [steps])
+
+  const countHits = (s) => s.reduce((a, row) => a + row.reduce((b, v) => b + (v ? 1 : 0), 0), 0)
+
+  // Anuncia por aria-live, alternando un sufijo invisible (ZWSP) para que un lector de pantalla
+  // re-anuncie aunque el texto se repita (p. ej. "Nada para deshacer" dos veces seguidas).
+  const announce = (msg) => {
+    recNonceRef.current = (recNonceRef.current + 1) % 2
+    setRecAnnounce(msg + (recNonceRef.current ? '​' : ''))
+  }
+
+  // Un tap: cuantiza contra el reloj de audio y escribe el golpe (idempotente) en el anillo activo.
+  const recordTap = () => {
+    const eng = engineRef.current
+    if (!eng) return
+    if (countingIn) { eng.metricTick(1); return }      // count-in: rechazo tenue, todavía no
+    const now = eng.getCurrentTime()
+    if (now - lastTapRef.current < 0.03) return         // dedupe de rebote (30 ms)
+    lastTapRef.current = now
+    const step = eng.tapToStep()
+    if (step < 0) { eng.metricTick(1); return }          // loop parado: no hay aguja, rechazo
+    const inst = recInst
+    const value = inst === 0 ? 1 : (closedMode ? 2 : 1)
+    // Snapshot ANTES del setSteps: el updater debe ser puro (en StrictMode se invoca 2 veces).
+    undoStackRef.current.push(stepsRef.current.map(r => [...r]))
+    if (undoStackRef.current.length > 64) undoStackRef.current.shift()
+    setSteps(prev => writeHit(prev, inst, step, value))   // escribe por valor (no cicla → no borra)
+    eng.previewHit(inst, value)                            // audio inmediato (antes del próximo loop)
+    setKbCursor({ i: inst, s: step })                     // ancla visual: cursor dorado en la celda
+  }
+
+  const enterRecord = () => {
+    if (recordMode) return
+    if (measures > 2) {
+      showToast('El Modo Toque trabaja mejor en 1 o 2 compases (en grillas largas el pulso se desvía). Bajá los compases para grabar.', 'info')
+      return
+    }
+    dismissHint()
+    prevMetricGuideRef.current = metricGuide
+    setMetricGuide(true)                                   // la claqueta es obligatoria para grabar sin ver
+    if (!engineRef.current.isPlayingNow()) {
+      engineRef.current.scrubTo(0)                         // reposicionar en el "uno" ANTES de arrancar
+      engineRef.current.togglePlay()                       // (si no, agenda steps del offset viejo)
+    }
+    setPlaying(engineRef.current.isPlayingNow())
+    setRecInst(1)
+    setClosedMode(false)
+    setKbCursor({ i: 1, s: 0 })
+    undoStackRef.current = []
+    lastTapRef.current = 0
+    setCountingIn(true)
+    const oneMeasureMs = (engineRef.current.getLoopDuration() / Math.max(1, measures)) * 1000
+    clearTimeout(countInTimerRef.current)
+    countInTimerRef.current = setTimeout(() => { setCountingIn(false); announce('¡Ya! Tocá el ritmo.') }, oneMeasureMs)
+    announce('Modo Toque. Grabás en Rum. Entrada en un compás.')
+    setRecordMode(true)
+  }
+
+  const exitRecord = () => {
+    if (!recordMode) return
+    clearTimeout(countInTimerRef.current)
+    setCountingIn(false)
+    const n = countHits(stepsRef.current)
+    announce(`Saliste del Modo Toque. ${n} ${n === 1 ? 'golpe' : 'golpes'} en este ritmo.`)
+    setRecordMode(false)                                   // el loop sigue sonando (grabar ≠ transportar)
+    recordToggleRef.current?.focus()                       // el foco vuelve al botón ● (no cae a <body>)
+  }
+
+  const changeRecInst = (i) => {
+    if (i < 0 || i >= INSTRUMENTS.length) return
+    setRecInst(i)
+    const step = engineRef.current ? engineRef.current.getCurrentStep() : 0
+    setKbCursor({ i, s: step })
+    announce(`Ahora grabás en ${INSTRUMENTS[i].name}.`)
+  }
+
+  const toggleClosedMode = () => {
+    if (recInst === 0) { announce('El Gã siempre toca abierto.'); return } // el idiófono no tiene cerrado
+    const nv = !closedMode
+    setClosedMode(nv)
+    announce(nv ? 'Golpes cerrados.' : 'Golpes abiertos.')
+  }
+
+  const undoLastTap = () => {
+    if (undoStackRef.current.length === 0) { announce('Nada para deshacer.'); return }
+    setSteps(undoStackRef.current.pop())
+    announce('Deshecho el último golpe.')
+  }
+
+  const clearRecRing = async () => {
+    const hasHits = (stepsRef.current[recInst] || []).some(v => v > 0)
+    if (!hasHits) { setRecAnnounce(`${INSTRUMENTS[recInst].name} ya está vacío.`); return }
+    const ok = await confirmModal({
+      title: 'Vaciar anillo',
+      message: `¿Vaciar todos los golpes de ${INSTRUMENTS[recInst].name}?`,
+      confirmLabel: 'Vaciar', danger: true
+    })
+    if (!ok) return
+    undoStackRef.current.push(stepsRef.current.map(r => [...r]))   // snapshot ANTES (updater puro)
+    setSteps(prev => {
+      const next = prev.map(r => [...r])
+      next[recInst] = next[recInst].map(() => 0)
+      return next
+    })
+    announce(`${INSTRUMENTS[recInst].name} vacío.`)
+  }
+
+  const onToggleRecord = () => (recordMode ? exitRecord() : enterRecord())
+
+  // Bundle fresco de handlers para que el listener global (suscrito una vez) nunca use closures viejos.
+  useEffect(() => {
+    recApiRef.current = { recordMode, recInst, recordTap, enterRecord, exitRecord, changeRecInst, toggleClosedMode, undoLastTap }
+  })
+
+  // Listener global en fase de CAPTURA: en Modo Toque el Espacio SIEMPRE tapea-cuantizado, antes que
+  // el onKeyDown de la grilla accesible (evita doble-escritura). Fuera del modo sólo escucha "R".
+  // Se ignora si el foco está en un input/textarea o dentro de un diálogo (no romper el Modal).
+  useEffect(() => {
+    const onKey = (e) => {
+      const api = recApiRef.current
+      if (!api) return
+      const t = e.target
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable ||
+        (t.closest && t.closest('[role="dialog"]')))) return
+      if (e.repeat) return
+      if (e.code === 'KeyR') { e.preventDefault(); api.recordMode ? api.exitRecord() : api.enterRecord(); return }
+      if (!api.recordMode) return
+      // En Modo Toque, Espacio activa nativamente un botón de ACCIÓN enfocado (Salir, Deshacer,
+      // PLAY…); pero en el botón TAP y en las celdas de la grilla, Espacio TAPEA (Enter siempre activa).
+      if (e.code === 'Space' && t && t.tagName === 'BUTTON' && t.getAttribute('role') !== 'gridcell' && !t.classList.contains('ogbon-tap')) return
+      switch (e.code) {
+        case 'Space': e.preventDefault(); e.stopPropagation(); api.recordTap(); break
+        case 'Escape': e.preventDefault(); e.stopPropagation(); api.exitRecord(); break
+        case 'Backspace': e.preventDefault(); e.stopPropagation(); api.undoLastTap(); break
+        case 'KeyC': e.preventDefault(); e.stopPropagation(); api.toggleClosedMode(); break
+        case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4':
+          e.preventDefault(); e.stopPropagation(); api.changeRecInst(Number(e.code.slice(5)) - 1); break
+        case 'ArrowUp': e.preventDefault(); e.stopPropagation(); api.changeRecInst(api.recInst - 1); break
+        case 'ArrowDown': e.preventDefault(); e.stopPropagation(); api.changeRecInst(api.recInst + 1); break
+        default: break
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
+  // Restaurar la Guía métrica al valor previo al SALIR (cubre Escape, botón, R y desmontaje).
+  useEffect(() => {
+    if (!recordMode) return
+    return () => { setMetricGuide(prevMetricGuideRef.current) }
+  }, [recordMode])
+
   const handleGainChange = useCallback((idx, value) => {
     engineRef.current?.setGain(idx, value)
     setGains(prev => {
@@ -163,6 +333,7 @@ export default function Ogbon() {
   }, [])
 
   const handlePresetChange = useCallback((key) => {
+    if (recApiRef.current?.recordMode) recApiRef.current.exitRecord() // cargar un preset sale del Modo Toque
     setSelectedPreset(key)
     if (key === 'Cargar...') { setPresetMeta(null); return }
     const data = getPresetData(key)
@@ -237,6 +408,7 @@ export default function Ogbon() {
   const handleImport = useCallback(async (e) => {
     const file = e.target.files[0]
     if (!file) return
+    if (recApiRef.current?.recordMode) recApiRef.current.exitRecord() // importar sale del Modo Toque
     const fail = () => { showToast('Archivo .ogbon inválido o incompatible', 'error'); e.target.value = '' }
 
     let data
@@ -291,11 +463,15 @@ export default function Ogbon() {
       {/* Patrón + presets */}
       <div className="w-full max-w-2xl bg-[#1e1e1e] rounded-xl p-3 mb-3 flex flex-col gap-2 shadow-lg">
         <div className="flex flex-wrap justify-center gap-2">
-          <select className={selectClass} value={gridType} onChange={e => handleGridTypeChange(e.target.value)}>
+          <select className={`${selectClass} disabled:opacity-40`} value={gridType} disabled={recordMode}
+            title={recordMode ? 'Salí del Modo Toque para cambiar la métrica' : undefined}
+            onChange={e => handleGridTypeChange(e.target.value)}>
             <option value={12}>Grilla: 12/8 (Ternaria)</option>
             <option value={16}>Grilla: 4/4 (Cuaternaria)</option>
           </select>
-          <select className={selectClass} value={measures} onChange={e => handleMeasuresChange(e.target.value)}>
+          <select className={`${selectClass} disabled:opacity-40`} value={measures} disabled={recordMode}
+            title={recordMode ? 'Salí del Modo Toque para cambiar los compases' : undefined}
+            onChange={e => handleMeasuresChange(e.target.value)}>
             {measuresOptions.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
@@ -411,6 +587,8 @@ export default function Ogbon() {
         onTogglePractice={() => setPracticeMode(v => !v)}
         metricGuide={metricGuide}
         onToggleMetricGuide={() => setMetricGuide(v => !v)}
+        recordMode={recordMode}
+        onToggleRecord={onToggleRecord}
       />
 
       {/* Axé — visualización HONESTA del audio (colapsable, para menos ruido) */}
@@ -436,12 +614,36 @@ export default function Ogbon() {
         </div>
       </CollapsiblePanel>
 
-      {/* Transporte fijo abajo — PLAY + BPM siempre a mano */}
+      {/* Transporte fijo abajo — PLAY + BPM siempre a mano; la barra de Modo Toque va encima */}
       <div
         className="fixed bottom-0 left-0 right-0 z-50 bg-[#1e1e1e]/95 backdrop-blur border-t border-[#444] shadow-[0_-4px_24px_rgba(0,0,0,0.6)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
+        {recordMode && (
+          <RecordBar
+            instruments={INSTRUMENTS}
+            recInst={recInst}
+            closedMode={closedMode}
+            countingIn={countingIn}
+            onTap={recordTap}
+            onChangeInst={changeRecInst}
+            onToggleClosed={toggleClosedMode}
+            onUndo={undoLastTap}
+            onClear={clearRecRing}
+            onExit={exitRecord}
+          />
+        )}
         <div className="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">
+          <button
+            ref={recordToggleRef}
+            onClick={onToggleRecord}
+            aria-label={recordMode ? 'Salir del Modo Toque' : 'Entrar al Modo Toque para grabar tocando'}
+            aria-pressed={recordMode}
+            title={recordMode ? 'Grabando — tocá para salir' : 'Modo Toque (grabar tocando)'}
+            className={`flex items-center justify-center rounded-full w-12 h-12 shrink-0 text-lg font-bold transition-transform duration-200 hover:scale-105 ${recordMode ? 'bg-[#e74c3c] text-white ring-2 ring-white/50' : 'bg-[#2a2a2a] text-[#e74c3c] border border-[#555]'}`}
+          >
+            ●
+          </button>
           <button
             onClick={handleTogglePlay}
             aria-label={playing ? 'Detener' : 'Reproducir'}
@@ -454,13 +656,18 @@ export default function Ogbon() {
             min="10"
             max="180"
             value={bpm}
+            disabled={recordMode}
+            title={recordMode ? 'Salí del Modo Toque para cambiar el tempo' : undefined}
             onChange={e => setBpm(parseInt(e.target.value))}
-            className="flex-1 accent-[var(--gold)]"
+            className="flex-1 accent-[var(--gold)] disabled:opacity-40"
             aria-label="Tempo (BPM)"
           />
           <span className="text-sm tabular-nums w-16 text-right shrink-0">{bpm} BPM</span>
         </div>
       </div>
+
+      {/* Región aria-live propia del Modo Toque (separada de la de la grilla accesible) */}
+      <div className="sr-only" role="status" aria-live="polite">{recAnnounce}</div>
 
       {/* Diálogos propios y avisos no-bloqueantes (Iteración 3 — Comodidad) */}
       <Modal state={modalState} onClose={closeModal} />

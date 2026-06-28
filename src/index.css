@@ -37,6 +37,11 @@ canvas:focus-visible {
 .ogbon-cell { fill: transparent; cursor: pointer; }
 .ogbon-cell:hover { fill: rgba(255, 215, 0, 0.08); }
 
+/* Botón TAP del Modo Toque: micro-feedback de pulsación (se anula con reduced-motion) */
+.ogbon-tap { transition: transform 0.06s ease, filter 0.06s ease; cursor: pointer; }
+.ogbon-tap:hover { filter: brightness(1.05); }
+.ogbon-tap:active { transform: scale(0.97); }
+
 /* Scroll horizontal de la partitura cuando el patrón excede el ancho del panel */
 .ogbon-notation-scroll { scrollbar-width: thin; scrollbar-color: #444 transparent; }
 .ogbon-notation-scroll::-webkit-scrollbar { height: 6px; }

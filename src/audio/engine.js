@@ -397,6 +397,19 @@ export function createAudioEngine(instruments) {
     setGain(idx, value) { instruments[idx].gain = value },
 
     getPlaybackPos() { return currentPlaybackPos },
+
+    // Cuantiza un TAP a la celda más cercana, recomputando la posición FRESCA contra el reloj
+    // de hardware (ctx.currentTime), no el currentPlaybackPos cacheado por el RAF de los canvas
+    // (que puede quedar ~16ms+ viejo, o congelarse si la pestaña va a background). Mismo cálculo
+    // que updatePlaybackPos y misma fórmula round(pos*grid)%grid que el mouse en CircleCanvas, así
+    // tap/mouse/teclado cuantizan idéntico. Devuelve -1 si el loop no está sonando (no hay aguja).
+    tapToStep() {
+      if (!isPlaying) return -1
+      const loopDuration = getLoopDuration()
+      const rel = (((ctx.currentTime - startTime) % loopDuration) + loopDuration) % loopDuration
+      return Math.round((rel / loopDuration) * grid) % grid
+    },
+
     getCurrentTime() { return ctx.currentTime },
     getCurrentStep() { return currentStep },
     getGrid() { return grid },

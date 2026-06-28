@@ -6,7 +6,7 @@ de donde salen las próximas iteraciones.
 ## Estado del proyecto (al 2026-06-28)
 
 - **En vivo:** https://martinlleral.github.io/ogbon/ (PWA instalable)
-- **Versión:** v2.11.0 · ver `../CHANGELOG.md` para el mapa de versiones completo
+- **Versión:** v2.12.0 · ver `../CHANGELOG.md` para el mapa de versiones completo
 - ✅ **Iteración 1 (v2.5.0) — Cimientos:** fix Haces + fidelidad de presets, nitidez
   retina, sin Supabase (offline), 3 toques con fuentes, ijexá al abrir.
 - ✅ **Iteración 2 (v2.6.0) — Móvil:** PWA instalable + offline, Screen Wake Lock,
@@ -37,16 +37,22 @@ de donde salen las próximas iteraciones.
   **silencios consolidados por duración** y **multi-sistema (wrap)** para patrones largos.
   Exploración documentada de **speech/tap-to-rhythm** (`SPEECH-TO-RHYTHM.md`).
 
-## ▶️ Próxima iteración: 8 — a elegir con Martín
+- ✅ **Iteración 8 (v2.12.0) — Modo Toque:** **tap-to-circle** — grabar tocando (Espacio /
+  botón TAP / touch) con count-in de 1 compás y claqueta; cada golpe cae cuantizado en el
+  anillo activo (1–4), abierto/cerrado (C), deshacer, vaciar, salir. Flujo 100% no-visual con
+  aria-live. Diseño por panel multi-agente + revisión adversarial (14 hallazgos, 13 corregidos).
+  Es la puerta de accesibilidad (QWERTYBeats/NYU) y el escalón 1 hacia la voz.
+
+## ▶️ Próxima iteración: 9 — a elegir con Martín
 
 Candidatas (ver "Pendientes" abajo para el detalle):
 - 🤝 **Validación cultural** EN CURSO (músico ciego para a11y + sesión grabada con el
   terreiro; guía en `GUIA-SESION-CULTURAL.md`). Al volver: volcar hallazgos y corregir presets.
 - 👁 **Pruebas reales de a11y con el músico ciego** (VoiceOver/NVDA): validar la grilla
-  accesible + la Guía métrica + el fraseo de los anuncios con una persona usuaria.
-- 🥁 **Tap-to-circle** (experimento de bajo esfuerzo recomendado en `SPEECH-TO-RHYTHM.md`):
-  tocar el ritmo (espacio/clic/touch) con tempo+métrica elegidos → cae cuantizado en el
-  círculo. Entrada de ritmo sin navegar la grilla visual; escalón 1 hacia la voz.
+  accesible, la Guía métrica y **el Modo Toque** (en especial la ruta Enter-en-TAP si el
+  lector intercepta el Espacio) + el fraseo de los anuncios con una persona usuaria.
+- 🗣 **Escalón 2 de la voz** (de `SPEECH-TO-RHYTHM.md`): onset detection de beatbox/voz con
+  tempo+métrica manuales (opción C) — el mismo pipeline del Modo Toque cambiando la fuente del onset.
 - 🎬 **Export del Florecimiento a video/WebM** (despriorizado por Martín).
 
 ## Pendientes (evaluar/priorizar)
@@ -94,12 +100,12 @@ Pieza compartible (IG) + de portafolio; alimenta el stack `/reel`. **Origen:** E
 
 ### 🥁 Entrada de ritmo por voz/tap ("decí/tocá el toque y lo escribo")
 Exploración técnico-cultural completa en [`SPEECH-TO-RHYTHM.md`](./SPEECH-TO-RHYTHM.md).
-Conclusión: lo viable y honesto hoy es **tap-to-circle** (tocás el ritmo con tempo+métrica
-dados → snap a la grilla), que además es **puerta de accesibilidad** (crear un ritmo sin
-navegar el canvas, precedente QWERTYBeats/NYU) y **escalón 1** hacia la voz (mismo pipeline,
-cambia la fuente del onset). La transcripción de beatbox y el "cantá el toque con sílabas"
-quedan a futuro y **requieren validación cultural** (el sistema silábico del Candomblé no
-está documentado como formal).
+**Tap-to-circle: ✅ HECHO (v2.12.0, "Modo Toque").** Tocás el ritmo con tempo+métrica dados y
+cada golpe cae cuantizado en el anillo activo; puerta de accesibilidad (QWERTYBeats/NYU) y
+escalón 1 hacia la voz. **Falta (futuro):** **escalón 2** — onset detection de beatbox/voz
+con tempo+métrica manuales (opción C del doc; mismo pipeline, cambia la fuente del onset). La
+transcripción ML completa y el "cantá el toque con sílabas" quedan más lejos y **requieren
+validación cultural** (el sistema silábico del Candomblé no está documentado como formal).
 
 ## Ideas sueltas (sin desarrollar)
 - Botón "generá una variación" con ritmos euclidianos (Bjorklund).

@@ -3,6 +3,10 @@
 > Mapa de posibilidades para **futuras versiones** de Ogbón, no un plan de implementación.
 > Pregunta: ¿hay forma *sencilla* de que alguien **diga, cante, beatboxee o toque** un ritmo
 > y caiga como golpes editables sobre los círculos? Destila una investigación con fuentes.
+>
+> **✅ Actualización (v2.12.0):** la **opción A — "Tap-to-circle"** (la recomendación de abajo)
+> ya está implementada como el **"Modo Toque"**. El resto del documento queda como mapa de los
+> siguientes escalones (onset de voz/beatbox, mapeo a atabaques, sílabas), que siguen a futuro.
 
 ## Resumen ejecutivo
 
