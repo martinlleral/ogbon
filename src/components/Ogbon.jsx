@@ -9,6 +9,8 @@ import WaveCanvas from './WaveCanvas'
 import Modal from './Modal'
 import Toast from './Toast'
 import Onboarding from './Onboarding'
+import KeyboardHelp from './KeyboardHelp'
+import CollapsiblePanel from './CollapsiblePanel'
 
 const INSTRUMENTS = [
   { name: 'Gã', color: '#ffd700', radius: 200, type: 'metal', pan: 0, gain: 0.8 },
@@ -38,6 +40,7 @@ export default function Ogbon() {
   const [showBeams, setShowBeams] = useState(true)
   const [showGlow, setShowGlow] = useState(true)
   const [vizMode, setVizMode] = useState('parallel')
+  const [practiceMode, setPracticeMode] = useState(true)
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
   const [presetMeta, setPresetMeta] = useState(() => getPresetMeta('builtin_ijexa'))
@@ -101,21 +104,30 @@ export default function Ogbon() {
 
   const handleGridTypeChange = useCallback((val) => {
     const newGridType = parseInt(val)
-    setGridType(newGridType)
     const newGrid = newGridType * measures
+    // Cambiar la subdivisión (ternaria 12/8 ↔ cuaternaria 4/4) no tiene un mapeo 1:1
+    // del patrón, así que se regenera vacío. (Sumar/quitar compases SÍ preserva el
+    // ritmo: ver handleMeasuresChange.)
+    if (engineRef.current.isPlayingNow()) engineRef.current.togglePlay()
     const newSteps = engineRef.current.setGrid(newGrid)
+    setGridType(newGridType)
     setSteps(newSteps)
     setPlaying(false)
   }, [measures])
 
   const handleMeasuresChange = useCallback((val) => {
     const newMeasures = parseInt(val)
-    setMeasures(newMeasures)
     const newGrid = gridType * newMeasures
-    const newSteps = engineRef.current.setGrid(newGrid)
-    setSteps(newSteps)
+    // Repetir cíclicamente el patrón actual: sumar compases DUPLICA el ritmo escrito;
+    // quitar compases lo TRUNCA al primer compás (en vez de borrar todo).
+    const tiled = steps.map(row => Array.from({ length: newGrid }, (_, i) => row[i % row.length]))
+    if (engineRef.current.isPlayingNow()) engineRef.current.togglePlay()
+    engineRef.current.setGrid(newGrid)
+    engineRef.current.setSteps(tiled)
+    setMeasures(newMeasures)
+    setSteps(tiled)
     setPlaying(false)
-  }, [gridType])
+  }, [gridType, steps])
 
   const handleStepToggle = useCallback((instIdx, stepIdx) => {
     dismissHint() // primer toque: cerrar la ayuda de onboarding (idempotente)
@@ -284,15 +296,14 @@ export default function Ogbon() {
         </div>
       </div>
 
-      {/* Contexto cultural del toque seleccionado */}
+      {/* Contexto cultural del toque seleccionado (colapsable; el orixá queda a la vista) */}
       {presetMeta && (
-        <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-3 mb-3 w-full max-w-2xl text-sm">
-          <div className="text-[var(--gold)] font-semibold mb-1">Orixá: {presetMeta.orixa}</div>
+        <CollapsiblePanel title={`Orixá: ${presetMeta.orixa}`}>
           <p className="opacity-90 leading-snug">{presetMeta.nota}</p>
           <p className="opacity-60 text-xs mt-2">Fuente: {presetMeta.fuente}</p>
           <p className="opacity-60 text-xs">Confianza: {presetMeta.confianza}</p>
           <p className="opacity-50 text-xs mt-1 italic">Aproximación didáctica, pendiente de validación comunitaria.</p>
-        </div>
+        </CollapsiblePanel>
       )}
 
       {/* Hint de primer uso (se va al tocar un círculo o al cerrarlo) */}
@@ -308,23 +319,11 @@ export default function Ogbon() {
         showBeams={showBeams}
         showGlow={showGlow}
         onStepToggle={handleStepToggle}
+        practiceMode={practiceMode}
       />
 
-      {/* Efectos visuales */}
-      <div className="w-full max-w-2xl bg-[#1e1e1e] p-2.5 rounded-xl flex flex-wrap justify-center gap-2 items-center my-3 text-xs">
-        <button className={showNeon ? activeBtnClass : btnClass} onClick={() => setShowNeon(v => !v)}>
-          Neón: {showNeon ? 'ON' : 'OFF'}
-        </button>
-        <button className={showBeams ? activeBtnClass : btnClass} onClick={() => setShowBeams(v => !v)}>
-          Haces: {showBeams ? 'ON' : 'OFF'}
-        </button>
-        <button className={showGlow ? activeBtnClass : btnClass} onClick={() => setShowGlow(v => !v)}>
-          Anillos: {showGlow ? 'ON' : 'OFF'}
-        </button>
-      </div>
-
-      {/* Mixer */}
-      <div className="w-full max-w-2xl bg-[#1e1e1e] p-4 rounded-xl flex justify-center gap-8 mb-3 shadow-lg border border-[#333] max-sm:gap-5">
+      {/* Mixer (ecualizador) — pegado al círculo, control sonoro primario */}
+      <div className="w-full max-w-2xl bg-[#1e1e1e] p-4 rounded-xl flex justify-center gap-8 mt-3 mb-3 shadow-lg border border-[#333] max-sm:gap-5">
         {INSTRUMENTS.map((inst, i) => (
           <div key={inst.name} className="flex flex-col items-center gap-3">
             <label className="text-[11px] uppercase tracking-widest font-bold" style={{ color: inst.color }}>{inst.name}</label>
@@ -341,21 +340,41 @@ export default function Ogbon() {
         ))}
       </div>
 
-      {/* Ondas */}
-      <div className="flex flex-col gap-2.5 w-full items-center">
-        <WaveCanvas
-          engine={engineRef}
-          instruments={INSTRUMENTS}
-          steps={steps}
-          vizMode={vizMode}
-        />
-        <button
-          className={btnClass}
-          onClick={() => setVizMode(v => v === 'parallel' ? 'master' : 'parallel')}
-        >
-          Modo: {vizMode === 'parallel' ? 'Ondas Paralelas' : 'Onda Transcendental'}
-        </button>
-      </div>
+      {/* Efectos visuales (colapsable, para menos ruido) */}
+      <CollapsiblePanel title="Efectos visuales">
+        <div className="flex flex-wrap justify-center gap-2 items-center text-xs">
+          <button className={showNeon ? activeBtnClass : btnClass} onClick={() => setShowNeon(v => !v)}>
+            Neón: {showNeon ? 'ON' : 'OFF'}
+          </button>
+          <button className={showBeams ? activeBtnClass : btnClass} onClick={() => setShowBeams(v => !v)}>
+            Haces: {showBeams ? 'ON' : 'OFF'}
+          </button>
+          <button className={showGlow ? activeBtnClass : btnClass} onClick={() => setShowGlow(v => !v)}>
+            Anillos: {showGlow ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      </CollapsiblePanel>
+
+      {/* Ayuda de teclado + modo Práctica (accesibilidad) */}
+      <KeyboardHelp practiceMode={practiceMode} onTogglePractice={() => setPracticeMode(v => !v)} />
+
+      {/* Ondas (colapsable, para menos ruido) */}
+      <CollapsiblePanel title="Ondas">
+        <div className="flex flex-col gap-2.5 w-full items-center">
+          <WaveCanvas
+            engine={engineRef}
+            instruments={INSTRUMENTS}
+            steps={steps}
+            vizMode={vizMode}
+          />
+          <button
+            className={btnClass}
+            onClick={() => setVizMode(v => v === 'parallel' ? 'master' : 'parallel')}
+          >
+            Modo: {vizMode === 'parallel' ? 'Ondas Paralelas' : 'Onda Transcendental'}
+          </button>
+        </div>
+      </CollapsiblePanel>
 
       {/* Transporte fijo abajo — PLAY + BPM siempre a mano */}
       <div

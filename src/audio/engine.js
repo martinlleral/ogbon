@@ -371,6 +371,15 @@ export function createAudioEngine(instruments) {
       })
     },
 
+    // Reproduce el golpe de UN instrumento (modo Práctica del teclado accesible).
+    // value: 0 silencio (no suena), 1 abierto, 2 cerrado.
+    previewHit(instIdx, value) {
+      if (ctx.state === 'suspended') ctx.resume()
+      if (!value) return
+      const inst = instruments[instIdx]
+      playSound(instIdx, inst.type, value === 2)
+    },
+
     applyPreset(data) {
       grid = data.grid
       steps = data.steps

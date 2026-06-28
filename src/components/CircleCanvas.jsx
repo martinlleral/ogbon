@@ -1,17 +1,52 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 
-export default function CircleCanvas({ engine, instruments, steps, grid, showNeon, showBeams, showGlow, onStepToggle }) {
+// Etiquetas de estado de cada golpe, para el anuncio a lectores de pantalla.
+const GA_LABELS = ['silencio', 'golpe']
+const DRUM_LABELS = ['silencio', 'abierto', 'cerrado']
+
+// Próximo valor al ciclar un golpe (misma regla que Ogbon.handleStepToggle):
+// 0→1→2→0; el Gã (i===0) solo alterna silencio↔golpe.
+function nextStepValue(cur, instIdx) {
+  let next = (cur + 1) % 3
+  if (instIdx === 0 && next === 2) next = 0
+  return next
+}
+
+// Lee una celda clampeando índices: un cambio de grilla nunca produce out-of-bounds.
+function readCell(steps, instIdx, step) {
+  const row = steps[Math.min(instIdx, steps.length - 1)] || []
+  return row[Math.min(step, row.length - 1)] ?? 0
+}
+
+export default function CircleCanvas({ engine, instruments, steps, grid, showNeon, showBeams, showGlow, onStepToggle, practiceMode }) {
   const canvasRef = useRef(null)
   const animRef = useRef(null)
   // Tamaño lógico (CSS px) y devicePixelRatio actuales, para dibujar nítido en retina/móvil
   const sizeRef = useRef(500)
   const dprRef = useRef(1)
 
+  // --- Accesibilidad por teclado (patrón "Non-Visual Beats", NYU + Ability Project) ---
+  const [cursor, setCursor] = useState({ inst: 0, step: 0 })
+  const [focused, setFocused] = useState(false)
+  const [announce, setAnnounce] = useState('')
+  const cursorRef = useRef(cursor)
+  const focusedRef = useRef(false)
+  useEffect(() => { cursorRef.current = cursor }, [cursor])
+  useEffect(() => { focusedRef.current = focused }, [focused])
+
   // Mirror props into refs so the RAF loop always reads latest values
   const propsRef = useRef({ steps, grid, showNeon, showBeams, showGlow })
   useEffect(() => {
     propsRef.current = { steps, grid, showNeon, showBeams, showGlow }
   }, [steps, grid, showNeon, showBeams, showGlow])
+
+  // Describe una celda para el lector de pantalla: "Rum · tiempo 3 de 16 · abierto"
+  const describeCell = useCallback((instIdx, step, value) => {
+    const inst = instruments[instIdx]
+    const labels = instIdx === 0 ? GA_LABELS : DRUM_LABELS
+    const g = propsRef.current.grid
+    return `${inst.name} · tiempo ${step + 1} de ${g} · ${labels[value] ?? 'silencio'}`
+  }, [instruments])
 
   // Resize — backing store en píxeles físicos (× dpr) pero medidas lógicas en CSS px
   useEffect(() => {
@@ -125,6 +160,24 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
         }
       })
 
+      // Cursor de teclado — sólo cuando el círculo tiene foco (navegación accesible)
+      if (focusedRef.current) {
+        const cur = cursorRef.current
+        const ci = Math.min(cur.inst, instruments.length - 1)
+        const cs = Math.min(cur.step, g - 1)
+        const r = instruments[ci].radius * scale
+        const angle = (cs / g) * Math.PI * 2 - Math.PI / 2
+        const x = centerX + Math.cos(angle) * r
+        const y = centerY + Math.sin(angle) * r
+        ctx.beginPath()
+        ctx.arc(x, y, 13, 0, Math.PI * 2)
+        ctx.strokeStyle = '#fff'
+        ctx.lineWidth = 2
+        ctx.setLineDash([3, 3])
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+
       // Needle (Playhead)
       const needleRadius = centerX - 30
       const needleAngle = playbackPos * Math.PI * 2 - Math.PI / 2
@@ -231,6 +284,8 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
           let normalizedAngle = angle < 0 ? angle + Math.PI * 2 : angle
           const step = Math.round((normalizedAngle / (Math.PI * 2)) * g) % g
           onStepToggle(i, step)
+          // Mantener el cursor de teclado donde el usuario tocó (coherencia entre modos)
+          setCursor({ inst: i, step })
         }
       })
     }
@@ -308,5 +363,72 @@ export default function CircleCanvas({ engine, instruments, steps, grid, showNeo
     }
   }, [engine, instruments, onStepToggle])
 
-  return <canvas ref={canvasRef} width="500" height="500" />
+  // --- Teclado: navegación accesible por el secuenciador radial ---
+  const handleKeyDown = useCallback((e) => {
+    const g = propsRef.current.grid
+    const s = propsRef.current.steps
+    const nInst = instruments.length
+    // Partimos siempre de un cursor válido (por si cambió la grilla)
+    let inst = Math.min(cursorRef.current.inst, nInst - 1)
+    let step = Math.min(cursorRef.current.step, g - 1)
+    let handled = true
+
+    switch (e.key) {
+      case 'ArrowRight': step = (step + 1) % g; break
+      case 'ArrowLeft': step = (step - 1 + g) % g; break
+      case 'ArrowUp': inst = (inst - 1 + nInst) % nInst; break   // hacia el anillo externo (Gã)
+      case 'ArrowDown': inst = (inst + 1) % nInst; break          // hacia el anillo interno (Lé)
+      case 'Home': step = 0; break
+      case 'End': step = g - 1; break
+      case '1': case '2': case '3': case '4': {
+        const idx = parseInt(e.key) - 1
+        if (idx < nInst) inst = idx
+        break
+      }
+      case ' ':
+      case 'Enter': {
+        // Togglear la celda actual y anunciar el nuevo estado
+        onStepToggle(inst, step)
+        const newVal = nextStepValue(readCell(s, inst, step), inst)
+        setCursor({ inst, step })
+        setAnnounce(describeCell(inst, step, newVal))
+        if (practiceMode) engine.current?.previewHit(inst, newVal)
+        e.preventDefault()
+        return
+      }
+      default:
+        handled = false
+    }
+
+    if (!handled) return
+    e.preventDefault()
+    const val = readCell(s, inst, step)
+    setCursor({ inst, step })
+    setAnnounce(describeCell(inst, step, val))
+    // Modo Práctica: sonar la celda destino para ubicarse sin ver (si tiene golpe)
+    if (practiceMode) engine.current?.previewHit(inst, val)
+  }, [instruments, onStepToggle, describeCell, practiceMode, engine])
+
+  const handleFocus = useCallback(() => {
+    setFocused(true)
+    const c = cursorRef.current
+    setAnnounce(describeCell(c.inst, c.step, readCell(propsRef.current.steps, c.inst, c.step)))
+  }, [describeCell])
+
+  return (
+    <>
+      <canvas
+        ref={canvasRef}
+        width="500"
+        height="500"
+        tabIndex={0}
+        role="application"
+        aria-label="Secuenciador circular de ritmo. Flechas izquierda y derecha para moverte entre tiempos; flechas arriba y abajo para cambiar de instrumento; teclas 1 a 4 para elegir instrumento; barra espaciadora o Enter para poner o sacar un golpe."
+        onKeyDown={handleKeyDown}
+        onFocus={handleFocus}
+        onBlur={() => setFocused(false)}
+      />
+      <div className="sr-only" role="status" aria-live="polite">{announce}</div>
+    </>
+  )
 }

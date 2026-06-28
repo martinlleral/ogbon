@@ -43,6 +43,14 @@ Performance). Inclusivo **y** oro de portafolio UX. Fuente en `RESEARCH.md`.
 Arrancar los contactos del plan (`VALIDACION-CULTURAL.md`): etnomusicólogo / comunidad,
 para validar los toques antes de sumar más presets.
 
+### 🌊 Visualizaciones de onda — función y potencial
+**Qué:** evaluar qué aportan realmente las dos vistas ("Ondas Paralelas" y "Onda
+Transcendental") y qué potencial tienen. ¿Son decorativas, pedagógicas, o feedback de
+performance? ¿Conviene quedarse con una, fusionarlas, o darles un rol claro (mostrar
+acentos, analizar el ritmo, ayudar a afinar el mixer)? Hoy quedaron **colapsadas** para
+bajar el ruido visual; falta decidir su rol, su nombre y si se mantienen ambas.
+**Origen:** Martín, 2026-06-28.
+
 ### 🔧 Infra menor
 - CI: subir `node-version` de 20 → 24 en `deploy.yml` (warning de deprecación en Actions).
 

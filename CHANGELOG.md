@@ -2,6 +2,35 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.8.0] — 2026-06-28 · "Accesible"
+
+Cuarta iteración: el secuenciador se puede tocar **sin mouse, sin tacto y sin ver**.
+
+### Added
+- **Navegación por teclado completa** del círculo (patrón "Non-Visual Beats", NYU +
+  Ability Project): flechas para moverse entre tiempos (←/→) y anillos (↑/↓), teclas
+  **1-4** por instrumento, **Espacio/Enter** para poner o sacar un golpe, Inicio/Fin.
+  Foco visible (anillo dorado) + cursor punteado en la celda activa.
+- **Lectura para lector de pantalla**: una región ARIA-live anuncia *"Rum · tiempo 3 de
+  16 · abierto"* en cada movimiento (el canvas es `role="application"`).
+- **Modo Práctica**: al navegar, suena el golpe de la celda para ubicarse sin ver (toggle,
+  activado por defecto).
+- **Panel de atajos** (⌨) desplegable: hace descubrible la navegación por teclado para todos.
+- Documento de decisiones de diseño: [`docs/ACCESIBILIDAD.md`](docs/ACCESIBILIDAD.md).
+
+### Changed
+- **Menos ruido visual** (accesibilidad cognitiva): el contexto cultural (orixá), los
+  efectos visuales (neón / haces / anillos) y las ondas pasan a **paneles desplegables**
+  con el mismo estilo que el de teclado. El **ecualizador sube** y queda pegado al círculo.
+- **Sumar compases ahora DUPLICA el ritmo** escrito (repetición cíclica) en vez de
+  borrarlo; quitar compases lo trunca al primer compás.
+
+### Fixed
+- Al cambiar de compás o de grilla **mientras sonaba**, el motor podía seguir sonando con
+  el botón en ▶. Ahora la reproducción se detiene de forma consistente.
+
+---
+
 ## [2.7.0] — 2026-06-27 · "Comodidad"
 
 Tercera iteración: se pulen los detalles de uso para que la app se sienta cuidada.
@@ -95,6 +124,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.8.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.8.0
 [2.7.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.7.0
 [2.6.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.6.0
 [2.5.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.5.0

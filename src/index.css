@@ -26,6 +26,13 @@ canvas {
   touch-action: none;
 }
 
+/* Foco visible al navegar por teclado (accesibilidad): anillo dorado circular */
+canvas:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
 /* Vertical range sliders — Tailwind can't handle writing-mode */
 .mixer-slider {
   writing-mode: vertical-lr;

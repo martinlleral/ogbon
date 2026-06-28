@@ -16,7 +16,9 @@ export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
   useEffect(() => {
     const canvas = canvasRef.current
     function resize() {
-      const maxWave = 800
+      // Tope alineado al ancho de los paneles (max-w-2xl ≈ 672px menos el padding),
+      // para que las Ondas entren prolijas dentro de su panel desplegable.
+      const maxWave = 640
       const waveWidth = Math.min(maxWave, window.innerWidth - 20)
       const waveHeight = Math.max(200, Math.round(waveWidth * 300 / 800))
       const dpr = window.devicePixelRatio || 1
