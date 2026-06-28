@@ -1,26 +1,38 @@
 import { useRef, useEffect } from 'react'
 
+/**
+ * WaveCanvas — Visualización de audio HONESTA y de marca para Ogbón.
+ *
+ * Historia (ver docs/EVAL-ONDAS.md): la versión vieja tenía dos modos con problemas de
+ * integridad — "Ondas Paralelas" (envolventes scripteadas, no señal real, redundantes con
+ * el círculo) y un "espectro" que NO era un espectro (reusaba datos time-domain). En un
+ * proyecto cuya propuesta es la honestidad (los presets declaran su nivel de confianza),
+ * fingir precisión erosiona la confianza. Se rehízo apoyándose SÓLO en datos reales:
+ *
+ *  - 'bloom' (Florecimiento de Axé) — visual de marca, radial (rima con el secuenciador).
+ *    La forma de onda REAL del master (getByteTimeDomainData) se mapea a RADIO: una corona
+ *    dorada que late con la señal. Cada golpe emite un PÉTALO que se expande y desvanece,
+ *    alimentado por `activeNotes` (la MISMA data de evento que dispara el audio — principio
+ *    McLaren/ANIMUSIC: la imagen nace del sonido, no de un sin() inventado). Axé = energía.
+ *  - 'scope' (Osciloscopio) — la forma de onda real del master, ventaneada y con brillo.
+ *    Lectura analítica honesta de la textura sonora agregada. Sin barras de espectro falsas.
+ */
 export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
   const canvasRef = useRef(null)
   const animRef = useRef(null)
-  // Dimensiones lógicas (CSS px) y devicePixelRatio actuales, para dibujar nítido
-  const dimsRef = useRef({ w: 800, h: 300 })
+  const dimsRef = useRef({ w: 440, h: 320 })
   const dprRef = useRef(1)
 
   const propsRef = useRef({ steps, vizMode })
-  useEffect(() => {
-    propsRef.current = { steps, vizMode }
-  }, [steps, vizMode])
+  useEffect(() => { propsRef.current = { steps, vizMode } }, [steps, vizMode])
 
-  // Resize — backing store en píxeles físicos (× dpr), medidas lógicas en CSS px
+  // Resize — backing store en píxeles físicos (× dpr), medidas lógicas en CSS px.
+  // Área cuadrada-ish para que el florecimiento radial no quede aplastado.
   useEffect(() => {
     const canvas = canvasRef.current
     function resize() {
-      // Tope alineado al ancho de los paneles (max-w-2xl ≈ 672px menos el padding),
-      // para que las Ondas entren prolijas dentro de su panel desplegable.
-      const maxWave = 640
-      const waveWidth = Math.min(maxWave, window.innerWidth - 20)
-      const waveHeight = Math.max(200, Math.round(waveWidth * 300 / 800))
+      const waveWidth = Math.min(460, window.innerWidth - 24)
+      const waveHeight = Math.min(waveWidth, 340)
       const dpr = window.devicePixelRatio || 1
       canvas.width = Math.round(waveWidth * dpr)
       canvas.height = Math.round(waveHeight * dpr)
@@ -34,161 +46,171 @@ export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
     return () => window.removeEventListener('resize', resize)
   }, [])
 
-  // Draw loop
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
+    // Respeta a quien pide menos movimiento: no se dibujan los pétalos que se expanden.
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    // --- Florecimiento de Axé: corona radial (señal real) + pétalos de evento ---
+    function drawBloom(wW, wH, eng) {
+      const cx = wW / 2, cy = wH / 2
+      const { dataArray, bufferLength } = eng.getAnalyserData()   // time-domain REAL
+      const activeNotes = eng.getActiveNotes()
+      const audioNow = eng.getCurrentTime()
+      const isPlaying = eng.isPlayingNow()
+      const baseR = Math.min(wW, wH) * 0.27
+
+      ctx.fillStyle = '#0e0e0e'
+      ctx.fillRect(0, 0, wW, wH)
+
+      // 1) Pétalos de evento (honestos: uno por golpe, desde activeNotes). Sin shadowBlur
+      //    por pétalo (lo más caro en móvil): el glow se logra con 'lighter'.
+      if (!reduce) {
+        ctx.globalCompositeOperation = 'lighter'
+        for (let k = activeNotes.length - 1; k >= 0; k--) {
+          const note = activeNotes[k]
+          const elapsed = audioNow - note.startTime
+          const life = note.duration + 0.7
+          if (elapsed < 0 || elapsed > life) continue
+          const t = elapsed / life
+          const r = baseR * (0.45 + t * 1.5)
+          ctx.beginPath()
+          ctx.arc(cx, cy, r, 0, Math.PI * 2)
+          ctx.strokeStyle = note.color
+          ctx.globalAlpha = (1 - t) * 0.45
+          ctx.lineWidth = 1.5 + (1 - t) * 3.5
+          ctx.stroke()
+        }
+        ctx.globalAlpha = 1
+        ctx.globalCompositeOperation = 'source-over'
+      }
+
+      // Energía global = RMS REAL de la señal del master (no una envolvente scripteada),
+      // así el núcleo y el aura también reflejan el audio MEDIDO.
+      let sum = 0
+      for (let i = 0; i < bufferLength; i++) { const d = dataArray[i] / 128 - 1; sum += d * d }
+      const coreAmp = Math.min(1, Math.sqrt(sum / bufferLength) * 3.4)
+
+      // 2) Aura central (energía)
+      const aura = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseR * 1.7)
+      aura.addColorStop(0, `rgba(255,215,0,${0.08 + coreAmp * 0.32})`)
+      aura.addColorStop(0.5, 'rgba(255,140,0,0.05)')
+      aura.addColorStop(1, 'rgba(14,14,14,0)')
+      ctx.fillStyle = aura
+      ctx.fillRect(0, 0, wW, wH)
+
+      // 3) Corona radial = forma de onda real del master mapeada a radio
+      const N = bufferLength
+      const ringAmp = baseR * 0.55
+      ctx.beginPath()
+      for (let i = 0; i <= N; i++) {
+        const idx = i % N
+        const v = (dataArray[idx] / 128) - 1            // ≈ -1..1
+        const ang = (i / N) * Math.PI * 2 - Math.PI / 2
+        const r = baseR + v * ringAmp
+        const x = cx + Math.cos(ang) * r
+        const y = cy + Math.sin(ang) * r
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      const grad = ctx.createLinearGradient(cx - baseR, cy - baseR, cx + baseR, cy + baseR)
+      grad.addColorStop(0, '#ffd700')
+      grad.addColorStop(1, '#ff8c00')
+      ctx.strokeStyle = grad
+      ctx.lineWidth = 2
+      ctx.globalAlpha = 0.92
+      ctx.shadowColor = 'rgba(255,200,0,0.55)'
+      ctx.shadowBlur = isPlaying ? 16 : 6
+      ctx.stroke()
+      ctx.globalAlpha = 1
+      ctx.shadowBlur = 0
+
+      // 4) Núcleo que late con la energía
+      ctx.beginPath()
+      ctx.arc(cx, cy, 3.5 + coreAmp * 11, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(255,232,160,0.92)'
+      ctx.shadowColor = '#ffd700'
+      ctx.shadowBlur = 14
+      ctx.fill()
+      ctx.shadowBlur = 0
+    }
+
+    // --- Osciloscopio: forma de onda real del master, honesta (sin espectro falso) ---
+    function drawScope(wW, wH, eng, s) {
+      const { dataArray, bufferLength } = eng.getAnalyserData()
+      const currentStep = eng.getCurrentStep()
+      const isPlaying = eng.isPlayingNow()
+      const cyc = wH / 2
+
+      ctx.fillStyle = '#0e0e0e'
+      ctx.fillRect(0, 0, wW, wH)
+
+      // Aura suave
+      const aura = ctx.createRadialGradient(wW / 2, cyc, 0, wW / 2, cyc, wW / 2)
+      aura.addColorStop(0, 'rgba(40, 36, 18, 0.25)')
+      aura.addColorStop(1, 'rgba(14,14,14,0)')
+      ctx.fillStyle = aura
+      ctx.fillRect(0, 0, wW, wH)
+
+      // Línea base
+      ctx.beginPath()
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+      ctx.moveTo(20, cyc); ctx.lineTo(wW - 20, cyc); ctx.stroke()
+
+      // Forma de onda real (time-domain), ventaneada con una gaussiana
+      ctx.beginPath()
+      ctx.strokeStyle = 'rgba(255, 215, 0, 0.85)'
+      ctx.lineWidth = 1.8
+      ctx.shadowColor = 'rgba(255,200,0,0.4)'
+      ctx.shadowBlur = isPlaying ? 10 : 4
+      const slice = (wW - 40) / bufferLength
+      let x = 20
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0
+        const win = Math.exp(-Math.pow((i - bufferLength / 2) / (bufferLength / 3), 2))
+        const y = cyc + (v - 1) * (wH / 2.4) * win
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+        x += slice
+      }
+      ctx.stroke()
+      ctx.shadowBlur = 0
+
+      // Indicadores de actividad por instrumento (honestos: leen el paso actual real)
+      instruments.forEach((inst, i) => {
+        const xPos = Math.round(wW * 0.5 + (i - 1.5) * 34)
+        // Clampea el paso (la grilla pudo achicarse): evita un dot fantasma con índice OOB.
+        const cell = s[i] ? (s[i][currentStep] ?? 0) : 0
+        const active = cell !== 0 && isPlaying
+        ctx.beginPath()
+        ctx.arc(xPos, wH - 18, 6, 0, Math.PI * 2)
+        if (active) {
+          ctx.fillStyle = inst.color
+          ctx.shadowColor = inst.color
+          ctx.shadowBlur = 12
+          ctx.fill()
+          ctx.shadowBlur = 0
+        } else {
+          ctx.strokeStyle = inst.color + '60'
+          ctx.stroke()
+        }
+      })
+    }
 
     function drawFrame() {
       const eng = engine.current
       if (!eng) { animRef.current = requestAnimationFrame(drawFrame); return }
+      eng.updatePlaybackPos()
 
       const { steps: s, vizMode: mode } = propsRef.current
-      const waveHistory = eng.getWaveHistory()
-      const currentStep = eng.getCurrentStep()
-      const isPlaying = eng.isPlayingNow()
-      const { dataArray, bufferLength } = eng.getAnalyserData()
-
-      // Escala el contexto al dpr y trabaja en coordenadas lógicas (CSS px)
       const dpr = dprRef.current
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       const wW = dimsRef.current.w, wH = dimsRef.current.h
-      ctx.fillStyle = '#121212'
-      ctx.fillRect(0, 0, wW, wH)
 
-      const time = Date.now() * 0.005
-
-      if (mode === 'parallel') {
-        const waveDrawWidth = wW - 70
-        instruments.forEach((inst, i) => {
-          const yBase = Math.round(wH * 0.133 + i * (wH * 0.217))
-
-          // Label
-          ctx.fillStyle = inst.color
-          ctx.font = '12px Segoe UI'
-          ctx.fillText(inst.name, 10, yBase + 5)
-
-          // Base line
-          ctx.beginPath()
-          ctx.strokeStyle = inst.color + '40'
-          ctx.moveTo(60, yBase)
-          ctx.lineTo(wW - 10, yBase)
-          ctx.stroke()
-
-          // Active wave
-          ctx.beginPath()
-          ctx.strokeStyle = inst.color
-          ctx.lineWidth = 2
-
-          const historyLen = waveHistory[i].length
-          for (let x = 0; x < waveDrawWidth; x++) {
-            const histIdx = Math.floor((x / waveDrawWidth) * historyLen)
-            const amplitude = waveHistory[i][histIdx] || 0
-            const baseWave = Math.sin(x * 0.03 + time) * 3
-            const y = yBase + baseWave + Math.sin(x * 0.1 + time * 2) * amplitude * 25
-
-            if (x === 0) ctx.moveTo(60 + x, y)
-            else ctx.lineTo(60 + x, y)
-          }
-          ctx.stroke()
-
-          // Activity indicator
-          if (s[i] && s[i][currentStep] !== 0 && isPlaying) {
-            ctx.beginPath()
-            ctx.arc(wW - 20, yBase, 8, 0, Math.PI * 2)
-            ctx.fillStyle = inst.color
-            ctx.fill()
-          }
-        })
-      } else {
-        // Master / Transcendental mode
-        const waveCenterY = wH / 2
-
-        ctx.fillStyle = '#121212'
-        ctx.fillRect(0, 0, wW, wH)
-
-        // Aura
-        const aura = ctx.createRadialGradient(wW / 2, waveCenterY, 0, wW / 2, waveCenterY, wW / 2)
-        aura.addColorStop(0, 'rgba(30, 30, 60, 0.2)')
-        aura.addColorStop(1, 'rgba(18, 18, 18, 0)')
-        ctx.fillStyle = aura
-        ctx.fillRect(0, 0, wW, wH)
-
-        // Master wave
-        ctx.beginPath()
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
-        ctx.lineWidth = 1.5
-
-        const sliceWidth = wW / bufferLength
-        let x = 0
-        for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0
-          const y = waveCenterY + (v - 1) * (wH / 3) * Math.exp(-Math.pow((i - bufferLength / 2) / (bufferLength / 3), 2))
-          if (i === 0) ctx.moveTo(x, y)
-          else ctx.lineTo(x, y)
-          x += sliceWidth
-        }
-        ctx.stroke()
-
-        // Floating instrument colors
-        instruments.forEach((inst, i) => {
-          const amp = waveHistory[i][waveHistory[i].length - 1] || 0
-          if (amp > 0.02) {
-            ctx.beginPath()
-            ctx.strokeStyle = inst.color
-            ctx.globalAlpha = amp * 0.4
-            ctx.lineWidth = 1
-
-            for (let j = 0; j < bufferLength; j += 16) {
-              const v = dataArray[j] / 128.0
-              const h = (v - 1) * 60 + Math.sin(j * 0.02 + time + i) * 10
-              const px = (j / bufferLength) * wW
-              if (j === 0) ctx.moveTo(px, waveCenterY + h)
-              else ctx.lineTo(px, waveCenterY + h)
-            }
-            ctx.stroke()
-            ctx.globalAlpha = 1.0
-          }
-        })
-
-        ctx.globalCompositeOperation = 'source-over'
-
-        // Spectrum bars
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'
-        const barWidth = wW / 64
-        for (let i = 0; i < 64; i++) {
-          const idx = Math.floor(i * bufferLength / 64)
-          const value = Math.abs(dataArray[idx] - 128) / 128
-          const barHeight = value * 40
-          const instIdx = Math.min(3, Math.floor(i / 16))
-          ctx.fillStyle = instruments[instIdx].color + '60'
-          ctx.fillRect(i * barWidth, wH - 20 - barHeight, barWidth - 1, barHeight)
-        }
-
-        // Instrument indicators
-        instruments.forEach((inst, i) => {
-          const xPos = Math.round(wW * 0.0625 + i * (wW * 0.225))
-          ctx.beginPath()
-          ctx.arc(xPos, wH - 20, 15, 0, Math.PI * 2)
-
-          if (s[i] && s[i][currentStep] !== 0 && isPlaying) {
-            ctx.fillStyle = inst.color
-            ctx.fill()
-            ctx.shadowColor = inst.color
-            ctx.shadowBlur = 15
-          } else {
-            ctx.strokeStyle = inst.color + '50'
-            ctx.stroke()
-          }
-          ctx.shadowBlur = 0
-
-          ctx.fillStyle = (s[i] && s[i][currentStep] !== 0 && isPlaying) ? '#000' : inst.color
-          ctx.font = '10px Segoe UI'
-          ctx.textAlign = 'center'
-          ctx.fillText(inst.name, xPos, wH - 16)
-          ctx.textAlign = 'left'
-        })
-      }
+      if (mode === 'scope') drawScope(wW, wH, eng, s)
+      else drawBloom(wW, wH, eng)
 
       animRef.current = requestAnimationFrame(drawFrame)
     }
@@ -197,5 +219,5 @@ export default function WaveCanvas({ engine, instruments, steps, vizMode }) {
     return () => cancelAnimationFrame(animRef.current)
   }, [engine, instruments])
 
-  return <canvas ref={canvasRef} width="800" height="300" />
+  return <canvas ref={canvasRef} width="440" height="320" />
 }

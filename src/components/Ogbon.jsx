@@ -5,6 +5,7 @@ import { useModal } from '../hooks/useModal'
 import { useToast } from '../hooks/useToast'
 import { loadAllPresets, getPresetData, getPresetMeta, getDefaultPreset, deriveGridShape, saveLocalPreset, deleteLocalPreset, exportPreset, importPreset } from '../audio/presets'
 import CircleCanvas from './CircleCanvas'
+import NotationCanvas from './NotationCanvas'
 import WaveCanvas from './WaveCanvas'
 import Modal from './Modal'
 import Toast from './Toast'
@@ -39,7 +40,7 @@ export default function Ogbon() {
   const [showNeon, setShowNeon] = useState(true)
   const [showBeams, setShowBeams] = useState(true)
   const [showGlow, setShowGlow] = useState(true)
-  const [vizMode, setVizMode] = useState('parallel')
+  const [vizMode, setVizMode] = useState('bloom')
   const [practiceMode, setPracticeMode] = useState(true)
   const [presetList, setPresetList] = useState([])
   const [selectedPreset, setSelectedPreset] = useState('builtin_ijexa')
@@ -120,7 +121,7 @@ export default function Ogbon() {
     const newGrid = gridType * newMeasures
     // Repetir cíclicamente el patrón actual: sumar compases DUPLICA el ritmo escrito;
     // quitar compases lo TRUNCA al primer compás (en vez de borrar todo).
-    const tiled = steps.map(row => Array.from({ length: newGrid }, (_, i) => row[i % row.length]))
+    const tiled = steps.map(row => Array.from({ length: newGrid }, (_, i) => row.length ? row[i % row.length] : 0))
     if (engineRef.current.isPlayingNow()) engineRef.current.togglePlay()
     engineRef.current.setGrid(newGrid)
     engineRef.current.setSteps(tiled)
@@ -298,7 +299,7 @@ export default function Ogbon() {
 
       {/* Contexto cultural del toque seleccionado (colapsable; el orixá queda a la vista) */}
       {presetMeta && (
-        <CollapsiblePanel title={`Orixá: ${presetMeta.orixa}`}>
+        <CollapsiblePanel title={presetMeta.orixa.toLowerCase().startsWith('colectivo') ? 'Contexto cultural' : `Orixá: ${presetMeta.orixa}`}>
           <p className="opacity-90 leading-snug">{presetMeta.nota}</p>
           <p className="opacity-60 text-xs mt-2">Fuente: {presetMeta.fuente}</p>
           <p className="opacity-60 text-xs">Confianza: {presetMeta.confianza}</p>
@@ -340,6 +341,23 @@ export default function Ogbon() {
         ))}
       </div>
 
+      {/* Partitura — tercera lectura del mismo ritmo, sincronizada con el círculo */}
+      <CollapsiblePanel title="🎼 Partitura" defaultOpen>
+        <p className="opacity-50 text-xs mb-2 leading-snug">
+          La misma secuencia en notación de percusión. Tocá una posición para poner o sacar
+          un golpe: el círculo y la partitura se editan juntos.
+        </p>
+        <NotationCanvas
+          engine={engineRef}
+          instruments={INSTRUMENTS}
+          steps={steps}
+          grid={grid}
+          gridType={gridType}
+          measures={measures}
+          onStepToggle={handleStepToggle}
+        />
+      </CollapsiblePanel>
+
       {/* Efectos visuales (colapsable, para menos ruido) */}
       <CollapsiblePanel title="Efectos visuales">
         <div className="flex flex-wrap justify-center gap-2 items-center text-xs">
@@ -358,9 +376,14 @@ export default function Ogbon() {
       {/* Ayuda de teclado + modo Práctica (accesibilidad) */}
       <KeyboardHelp practiceMode={practiceMode} onTogglePractice={() => setPracticeMode(v => !v)} />
 
-      {/* Ondas (colapsable, para menos ruido) */}
-      <CollapsiblePanel title="Ondas">
+      {/* Axé — visualización HONESTA del audio (colapsable, para menos ruido) */}
+      <CollapsiblePanel title="🌀 Axé — Visualización">
         <div className="flex flex-col gap-2.5 w-full items-center">
+          <p className="opacity-50 text-xs text-center leading-snug max-w-sm">
+            {vizMode === 'bloom'
+              ? 'Florecimiento de Axé: la señal real del audio, en forma radial. Cada golpe deja un pétalo que se expande.'
+              : 'Osciloscopio: la forma de onda real de la mezcla. La textura sonora del toque.'}
+          </p>
           <WaveCanvas
             engine={engineRef}
             instruments={INSTRUMENTS}
@@ -369,9 +392,9 @@ export default function Ogbon() {
           />
           <button
             className={btnClass}
-            onClick={() => setVizMode(v => v === 'parallel' ? 'master' : 'parallel')}
+            onClick={() => setVizMode(v => v === 'bloom' ? 'scope' : 'bloom')}
           >
-            Modo: {vizMode === 'parallel' ? 'Ondas Paralelas' : 'Onda Transcendental'}
+            Modo: {vizMode === 'bloom' ? 'Florecimiento' : 'Osciloscopio'}
           </button>
         </div>
       </CollapsiblePanel>

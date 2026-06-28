@@ -2,6 +2,43 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.9.0] — 2026-06-28 · "Tres lecturas"
+
+Quinta iteración: una **partitura** convencional como tercera lectura del ritmo —
+sincronizada con el círculo— y las ondas reconvertidas en un visual de marca honesto.
+
+### Added
+- **Vista de partitura** (notación de percusión convencional) entre el círculo y las
+  ondas, dibujada a mano en **SVG (cero dependencias nuevas)**. Cuatro pentagramas de una
+  línea (Gã/Rum/Rumpi/Lé en sus colores), clave neutral, cifra **12/8** ó **4/4**, barras
+  de compás y leyenda. Gã = **×**; atabaque **abierto = ○**, **cerrado = +**. La duración
+  de cada nota = intervalo hasta el próximo ataque (un golpe cada 2 semicorcheas se lee
+  como **corchea**), con barrado por pulso y barras secundarias. Ver
+  [`docs/NOTACION.md`](docs/NOTACION.md).
+- **Edición bidireccional**: tocar una posición en la partitura pone o saca el golpe y
+  actualiza el **círculo** (y viceversa) — un solo estado, dos vistas.
+- **Playhead** de la partitura sincronizado al audio + resaltado de la **columna activa**.
+- **Florecimiento de Axé**: visual de marca **radial** que late con la **señal real** del
+  master y emite un **pétalo por cada golpe** (desde la data de evento real, no desde
+  valores inventados). Modo alternativo **Osciloscopio** (la onda real de la mezcla). Ver
+  [`docs/EVAL-ONDAS.md`](docs/EVAL-ONDAS.md).
+
+### Changed
+- Se **eliminaron** las **"Ondas Paralelas"** (envolventes scripteadas, redundantes con el
+  círculo) y el **"espectro" falso** (reusaba datos *time-domain*, no era una FFT). La
+  visualización ahora se apoya **sólo en datos reales** — coherencia de integridad con la
+  doctrina honesta del proyecto. Núcleo y aura del florecimiento manejados por el **RMS
+  real** de la señal.
+- Los paneles desplegables conservan su estado abierto/cerrado entre re-renders;
+  `prefers-reduced-motion` calma la animación del florecimiento.
+
+### Fixed
+- Preventivo (revisión adversarial pre-deploy): silencio inicial de la partitura mal
+  ubicado en compases posteriores al primero; salto del playhead en cada barra de compás;
+  posibles índices fuera de rango al achicar la grilla.
+
+---
+
 ## [2.8.0] — 2026-06-28 · "Accesible"
 
 Cuarta iteración: el secuenciador se puede tocar **sin mouse, sin tacto y sin ver**.
@@ -124,6 +161,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.9.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.9.0
 [2.8.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.8.0
 [2.7.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.7.0
 [2.6.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.6.0
