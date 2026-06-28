@@ -2,6 +2,21 @@
 
 Mapa de versiones del proyecto. Formato basado en [Keep a Changelog](https://keepachangelog.com).
 
+## [2.12.1] — 2026-06-28 · "Aguja sincronizada"
+
+### Fixed
+- **La aguja del círculo (y el playhead de la partitura) se desincronizaban del sonido**, sobre
+  todo por **Bluetooth** (un parlante/auricular BT suma 150-300 ms de latencia) y de forma más
+  notoria a **tempo lento**. Causa: la aguja se dibujaba con el reloj del `AudioContext`
+  (`ctx.currentTime`), pero el sonido sale del parlante un rato **después** (la latencia de
+  salida), así que la aguja iba **adelantada**. Ahora la posición visible y la cuantización del
+  tap (Modo Toque) se calculan contra el **tiempo audible** (`ctx.currentTime − outputLatency`):
+  la aguja marcha con lo que se **oye**, no con el reloj. El scheduler sigue usando el reloj
+  crudo (agenda a futuro, como debe). *Nota:* si el navegador no reporta la latencia real de
+  Bluetooth, puede quedar un resto; en ese caso se sumaría un ajuste manual.
+
+---
+
 ## [2.12.0] — 2026-06-28 · "Modo Toque"
 
 Octava iteración: **tap-to-circle** — grabar un ritmo **tocando** (barra espaciadora o botón
@@ -276,6 +291,7 @@ Primera iteración tras retomar el proyecto. Revisión técnica, research multia
 - Primer commit: `index.html` único (1381 líneas) con Web Audio API + Canvas 2D + Supabase.
 - Deploy automático a GitHub Pages vía GitHub Actions.
 
+[2.12.1]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.1
 [2.12.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.12.0
 [2.11.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.11.0
 [2.10.0]: https://github.com/martinlleral/ogbon/releases/tag/v2.10.0

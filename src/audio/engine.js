@@ -327,12 +327,23 @@ export function createAudioEngine(instruments) {
     schedulerTimeout = setTimeout(scheduler, lookahead)
   }
 
+  // Latencia de salida: el tiempo entre que se AGENDA un sonido (reloj de ctx) y que realmente
+  // SUENA en el parlante. Incluye el buffer del SO y —sobre todo— el retardo de Bluetooth
+  // (auriculares/parlantes BT suman 150-300 ms). La aguja se dibuja con ctx.currentTime, así que
+  // sin compensar va ADELANTADA respecto de lo que se oye (notorio a tempo lento). Restamos la
+  // latencia para que la aguja —y la cuantización del tap— marchen con el SONIDO, no con el reloj.
+  // El scheduler NO se compensa: agenda eventos a futuro y debe usar el reloj crudo.
+  function audibleElapsed() {
+    return ctx.currentTime - (ctx.outputLatency || 0) - startTime
+  }
+
   // Called every animation frame by canvas components
   function updatePlaybackPos() {
     if (isPlaying) {
-      const elapsedSinceStart = ctx.currentTime - startTime
       const loopDuration = getLoopDuration()
-      currentPlaybackPos = (elapsedSinceStart % loopDuration) / loopDuration
+      // módulo seguro: al arrancar, audibleElapsed puede ser negativo (aún no salió el sonido)
+      const e = ((audibleElapsed() % loopDuration) + loopDuration) % loopDuration
+      currentPlaybackPos = e / loopDuration
       currentStep = Math.floor(currentPlaybackPos * grid) % grid
     }
     decayHistory()
@@ -406,7 +417,8 @@ export function createAudioEngine(instruments) {
     tapToStep() {
       if (!isPlaying) return -1
       const loopDuration = getLoopDuration()
-      const rel = (((ctx.currentTime - startTime) % loopDuration) + loopDuration) % loopDuration
+      // Mismo tiempo audible que la aguja: si el usuario tapea cuando OYE el pulso, cae en su celda.
+      const rel = ((audibleElapsed() % loopDuration) + loopDuration) % loopDuration
       return Math.round((rel / loopDuration) * grid) % grid
     },
 
