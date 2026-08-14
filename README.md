@@ -4,6 +4,12 @@ Aplicación web interactiva para visualizar y componer ritmos de percusión afro
 (**Candomblé**), representando los tres tambores tradicionales (Rum, Rumpi y Lé) y la
 campana (Gã/agogô) como círculos concéntricos, con síntesis de audio en tiempo real.
 
+<p align="center">
+  <img src="screenshot.png" alt="Los cuatro círculos concéntricos —Gã, Rum, Rumpi y Lé— con un patrón de Ijexá cargado" width="760">
+</p>
+
+<p align="center"><em>Ijexá para Oxum. Cada anillo es un tambor; cada marca, un golpe.</em></p>
+
 ## Sobre la tradición (leer primero)
 
 Ogbón representa **percusión sagrada de Candomblé**, una religión de matriz africana
